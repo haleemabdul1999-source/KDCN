@@ -4,7 +4,12 @@ import { env } from '../../config/env';
 import { hmacSha256 } from '../../common/crypto';
 import { PrismaService } from '../../common/prisma.service';
 
-export const SEGMENTS: MerchantSegment[] = [MerchantSegment.GALAXY_MALL, MerchantSegment.OTHER_MARKET, MerchantSegment.HOME_VENDOR, MerchantSegment.INDEPENDENT];
+export const SEGMENTS: MerchantSegment[] = [
+  MerchantSegment.GALAXY_MALL,
+  MerchantSegment.OTHER_MARKET,
+  MerchantSegment.HOME_VENDOR,
+  MerchantSegment.INDEPENDENT,
+];
 
 /**
  * Metric definitions (also in docs/ANALYTICS.md). All money in kobo. "Period" = [from, to).
@@ -38,18 +43,38 @@ export class AnalyticsService {
     return hmacSha256(`${env().APP_SECRET}:${day}`, `${ip ?? ''}|${ua ?? ''}`).slice(0, 32);
   }
 
-  async track(input: { type: AnalyticsEventType; visitorHash: string; userId?: string; merchantId?: string; listingId?: string; query?: string; resultCount?: number }) {
-    await this.prisma.analyticsEvent.create({ data: { ...input, query: input.query?.slice(0, 100) } });
+  async track(input: {
+    type: AnalyticsEventType;
+    visitorHash: string;
+    userId?: string;
+    merchantId?: string;
+    listingId?: string;
+    query?: string;
+    resultCount?: number;
+  }) {
+    await this.prisma.analyticsEvent.create({
+      data: { ...input, query: input.query?.slice(0, 100) },
+    });
   }
 
   async platformMetrics(from: Date, to: Date, merchantId?: string) {
     const segments = merchantId ? (['ALL'] as const) : (['ALL', ...SEGMENTS] as const);
     const result: Record<string, unknown> = {};
     for (const seg of segments) {
-      result[seg] = await this.metricsFor(from, to, seg === 'ALL' ? undefined : (seg as MerchantSegment), merchantId);
+      result[seg] = await this.metricsFor(
+        from,
+        to,
+        seg === 'ALL' ? undefined : (seg as MerchantSegment),
+        merchantId,
+      );
     }
     const merchants = await this.merchantCounts();
-    return { period: { from, to }, segments: result, merchants, definitionsDoc: 'docs/ANALYTICS.md' };
+    return {
+      period: { from, to },
+      segments: result,
+      merchants,
+      definitionsDoc: 'docs/ANALYTICS.md',
+    };
   }
 
   private async metricsFor(from: Date, to: Date, segment?: MerchantSegment, merchantId?: string) {
@@ -59,9 +84,20 @@ export class AnalyticsService {
 
     const [orders] = await this.prisma.$queryRaw<
       {
-        initiated: bigint; paid: bigint; completed: bigint; cancelled: bigint; gmv: bigint | null; revenue: bigint | null;
-        delivery_retained: bigint | null; provider_fees: bigint | null; provider_fee_unknown: bigint; logistics_costs: bigint | null;
-        logistics_unknown: bigint; active_merchants: bigint; avg_hours_to_delivery: number | null; delivered: bigint;
+        initiated: bigint;
+        paid: bigint;
+        completed: bigint;
+        cancelled: bigint;
+        gmv: bigint | null;
+        revenue: bigint | null;
+        delivery_retained: bigint | null;
+        provider_fees: bigint | null;
+        provider_fee_unknown: bigint;
+        logistics_costs: bigint | null;
+        logistics_unknown: bigint;
+        active_merchants: bigint;
+        avg_hours_to_delivery: number | null;
+        delivered: bigint;
       }[]
     >`
       SELECT
@@ -82,7 +118,17 @@ export class AnalyticsService {
         (SELECT count(*) FROM fulfilments fu JOIN orders o ON o.id = fu."orderId" WHERE fu."completedAt" >= ${from} AND fu."completedAt" < ${to} ${f}) AS delivered`;
 
     const [extra] = await this.prisma.$queryRaw<
-      { failed_payments: bigint; refunds: bigint | null; refund_count: bigint; disputes: bigint; failed_attempts: bigint | null; buyers: bigint; repeat_buyers: bigint; prev_active: bigint; retained: bigint }[]
+      {
+        failed_payments: bigint;
+        refunds: bigint | null;
+        refund_count: bigint;
+        disputes: bigint;
+        failed_attempts: bigint | null;
+        buyers: bigint;
+        repeat_buyers: bigint;
+        prev_active: bigint;
+        retained: bigint;
+      }[]
     >`
       SELECT
         (SELECT count(*) FROM payment_transactions p JOIN orders o ON o.id = p."orderId" WHERE p.status = 'FAILED' AND p."updatedAt" >= ${from} AND p."updatedAt" < ${to} ${f}) AS failed_payments,
@@ -113,8 +159,14 @@ export class AnalyticsService {
     const providerFees = n(orders.provider_fees);
     const logistics = n(orders.logistics_costs);
     const incompleteReasons: string[] = [];
-    if (n(orders.provider_fee_unknown) > 0) incompleteReasons.push(`${n(orders.provider_fee_unknown)} payment(s) without a recorded provider fee`);
-    if (n(orders.logistics_unknown) > 0) incompleteReasons.push(`${n(orders.logistics_unknown)} platform-coordinated deliveries without a recorded logistics cost`);
+    if (n(orders.provider_fee_unknown) > 0)
+      incompleteReasons.push(
+        `${n(orders.provider_fee_unknown)} payment(s) without a recorded provider fee`,
+      );
+    if (n(orders.logistics_unknown) > 0)
+      incompleteReasons.push(
+        `${n(orders.logistics_unknown)} platform-coordinated deliveries without a recorded logistics cost`,
+      );
     const searches = segment ? null : evCount('SEARCH');
     const clicks = segment ? null : evCount('SEARCH_RESULT_CLICK');
 
@@ -159,8 +211,12 @@ export class AnalyticsService {
         END AS segment,
         m.status::text AS status, count(*) AS count
       FROM merchants m GROUP BY 1, 2`;
-    const out: Record<string, { registered: number; submitted: number; approved: number; suspended: number }> = {};
-    for (const seg of ['ALL', ...SEGMENTS]) out[seg] = { registered: 0, submitted: 0, approved: 0, suspended: 0 };
+    const out: Record<
+      string,
+      { registered: number; submitted: number; approved: number; suspended: number }
+    > = {};
+    for (const seg of ['ALL', ...SEGMENTS])
+      out[seg] = { registered: 0, submitted: 0, approved: 0, suspended: 0 };
     for (const r of rows) {
       for (const seg of ['ALL', r.segment]) {
         const c = Number(r.count);

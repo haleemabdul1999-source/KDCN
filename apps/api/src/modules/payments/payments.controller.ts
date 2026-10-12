@@ -1,5 +1,17 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { env } from '../../config/env';
@@ -22,8 +34,13 @@ export class PaymentsController {
   /** Provider webhooks. Authenticated by HMAC signature over the raw body, not by session. */
   @Public()
   @SkipCsrf()
+  @SkipThrottle()
   @Post('webhooks/:provider')
-  async webhook(@Param('provider') providerParam: string, @Req() req: KdcnRequest, @Res() res: Response) {
+  async webhook(
+    @Param('provider') providerParam: string,
+    @Req() req: KdcnRequest,
+    @Res() res: Response,
+  ) {
     const provider = providerParam.toUpperCase();
     if (!(provider in PaymentProvider)) throw new NotFoundException();
     const raw = req.rawBody ?? Buffer.alloc(0);
@@ -35,7 +52,8 @@ export class PaymentsController {
 
   private mock(): MockPaymentProvider {
     const m = this.providers.mock();
-    if (!m || env().PAYMENT_PROVIDER !== 'mock') throw new ForbiddenException('Mock payments are disabled');
+    if (!m || env().PAYMENT_PROVIDER !== 'mock')
+      throw new ForbiddenException('Mock payments are disabled');
     return m;
   }
 
@@ -46,8 +64,18 @@ export class PaymentsController {
     this.mock();
     const c = await this.prisma.mockProviderCharge.findUnique({ where: { reference } });
     if (!c) throw new NotFoundException();
-    const p = await this.prisma.paymentTransaction.findUnique({ where: { reference }, include: { order: { select: { id: true, number: true } } } });
-    return { reference, amountMinor: c.amountMinor, currency: c.currency, status: c.status, testMode: true, order: p?.order ?? null };
+    const p = await this.prisma.paymentTransaction.findUnique({
+      where: { reference },
+      include: { order: { select: { id: true, number: true } } },
+    });
+    return {
+      reference,
+      amountMinor: c.amountMinor,
+      currency: c.currency,
+      status: c.status,
+      testMode: true,
+      order: p?.order ?? null,
+    };
   }
 
   /**
@@ -60,19 +88,31 @@ export class PaymentsController {
   @HttpCode(200)
   async mockComplete(@Param('reference') reference: string, @Body() body: unknown) {
     const mock = this.mock();
-    const { outcome, sendWebhook } = parse(z.object({ outcome: z.enum(['success', 'failed', 'abandoned']), sendWebhook: z.boolean().default(true) }), body);
+    const { outcome, sendWebhook } = parse(
+      z.object({
+        outcome: z.enum(['success', 'failed', 'abandoned']),
+        sendWebhook: z.boolean().default(true),
+      }),
+      body,
+    );
     const charge = await mock.completeCharge(reference, outcome);
     if (!charge) throw new NotFoundException();
     let webhookResult: string | null = null;
     if (sendWebhook) {
-      const { body: raw, headers } = MockPaymentProvider.signedWebhook(outcome === 'success' ? 'charge.success' : 'charge.failed', { reference, status: outcome, amount: charge.amountMinor });
-      webhookResult = (await this.payments.handleWebhook(PaymentProvider.MOCK, raw, headers)).result;
+      const { body: raw, headers } = MockPaymentProvider.signedWebhook(
+        outcome === 'success' ? 'charge.success' : 'charge.failed',
+        { reference, status: outcome, amount: charge.amountMinor },
+      );
+      webhookResult = (await this.payments.handleWebhook(PaymentProvider.MOCK, raw, headers))
+        .result;
     }
     const p = await this.prisma.paymentTransaction.findUnique({ where: { reference } });
     return {
       status: charge.status,
       webhookResult,
-      redirectUrl: p ? `${env().WEB_BASE_URL}/orders/${p.orderId}/payment-return?reference=${encodeURIComponent(reference)}` : null,
+      redirectUrl: p
+        ? `${env().WEB_BASE_URL}/orders/${p.orderId}/payment-return?reference=${encodeURIComponent(reference)}`
+        : null,
     };
   }
 }

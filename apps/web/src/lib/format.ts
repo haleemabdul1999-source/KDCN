@@ -1,13 +1,22 @@
 export function naira(minor: number | null | undefined): string {
   if (minor == null) return '—';
   const n = minor / 100;
-  return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+  return (
+    '₦' +
+    n.toLocaleString('en-NG', {
+      minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 export function date(d: string | Date | null | undefined, withTime = false): string {
   if (!d) return '—';
   const dt = typeof d === 'string' ? new Date(d) : d;
-  return dt.toLocaleString('en-NG', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+  return dt.toLocaleString(
+    'en-NG',
+    withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' },
+  );
 }
 
 export function pct(v: number | null | undefined): string {

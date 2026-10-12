@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { expectNoHorizontalScroll, login } from './util';
 
 test.describe('customer journey (mobile)', () => {
-  test('discover across segments, buy an in-stock item, pay (test mode) and get a collection code', async ({ page }) => {
+  test('discover across segments, buy an in-stock item, pay (test mode) and get a collection code', async ({
+    page,
+  }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Kaduna');
     await expectNoHorizontalScroll(page);
@@ -18,8 +20,17 @@ test.describe('customer journey (mobile)', () => {
     await expect(page.getByText('Kawo Gadgets Hub').first()).toBeVisible(); // independent shop
     await expectNoHorizontalScroll(page);
 
-    // Product page.
-    await page.getByRole('link', { name: /Premium Ankara fabric/ }).first().click();
+    // Product page (the click is attributed to search for search-to-product conversion).
+    const searchClick = page.waitForRequest(
+      (r) =>
+        r.url().includes('/api/analytics/events') &&
+        (r.postData() ?? '').includes('SEARCH_RESULT_CLICK'),
+    );
+    await page
+      .getByRole('link', { name: /Premium Ankara fabric/ })
+      .first()
+      .click();
+    await searchClick;
     await expect(page.getByRole('heading', { name: /Premium Ankara fabric/ })).toBeVisible();
     await expect(page.getByText('Identity verified by KDCN')).toBeVisible();
     await expect(page.getByText('It does not guarantee product quality')).toBeVisible();
@@ -46,7 +57,9 @@ test.describe('customer journey (mobile)', () => {
     await page.getByRole('button', { name: 'Simulate successful payment' }).click();
 
     // Return page verifies server-side.
-    await expect(page.getByRole('heading', { name: 'Payment confirmed' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Payment confirmed' })).toBeVisible({
+      timeout: 20_000,
+    });
     await page.getByRole('link', { name: 'View order' }).click();
     await expect(page.getByText('Paid', { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel('Collection code')).toHaveText(/^\d{6}$/);
@@ -63,7 +76,9 @@ test.describe('customer journey (mobile)', () => {
     await page.getByRole('button', { name: /Place order/ }).click();
     await page.getByRole('button', { name: /Pay .* securely/ }).click();
     await page.getByRole('button', { name: 'Simulate declined payment' }).click();
-    await expect(page.getByRole('heading', { name: 'Payment not completed' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Payment not completed' })).toBeVisible({
+      timeout: 20_000,
+    });
     await page.getByRole('link', { name: 'View order' }).click();
     await expect(page.getByRole('button', { name: /Pay .* securely/ })).toBeVisible();
   });
@@ -71,7 +86,9 @@ test.describe('customer journey (mobile)', () => {
   test("home vendor storefront never shows the vendor's private address", async ({ page }) => {
     await page.goto('/s/amina-bakes');
     await expect(page.getByRole('heading', { name: 'Amina Bakes' })).toBeVisible();
-    await expect(page.getByText('This is a home-based business. Its address is private')).toBeVisible();
+    await expect(
+      page.getByText('This is a home-based business. Its address is private'),
+    ).toBeVisible();
     const html = await page.content();
     expect(html).not.toContain('Private Close');
     await expectNoHorizontalScroll(page);

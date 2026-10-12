@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test';
 import { login, totp } from './util';
 
 test.describe.serial('merchant and admin dashboards', () => {
-  test('merchant confirms, prepares and completes a collection order', async ({ page, browser }) => {
+  test('merchant confirms, prepares and completes a collection order', async ({
+    page,
+    browser,
+  }) => {
     // A customer orders a CONFIRM_ON_ORDER item (lace) for collection.
     const customer = await browser.newPage();
     await login(customer, 'customer@demo.kdcn.ng', 'Password123!', '/p/zainab-fabrics-2');
@@ -18,7 +21,10 @@ test.describe.serial('merchant and admin dashboards', () => {
     // Merchant confirms availability.
     await login(page, 'galaxy.merchant@demo.kdcn.ng', 'Password123!', '/merchant');
     await expect(page.getByRole('heading', { name: 'Zainab Fabrics' })).toBeVisible();
-    await page.getByRole('navigation', { name: 'Store management' }).getByRole('link', { name: 'Orders' }).click();
+    await page
+      .getByRole('navigation', { name: 'Store management' })
+      .getByRole('link', { name: 'Orders' })
+      .click();
     await page.locator('a', { hasText: 'Swiss voile lace' }).first().click();
     await page.getByRole('button', { name: 'Confirm availability' }).click();
     await expect(page.getByText('Confirmed — customer asked to pay')).toBeVisible();
@@ -27,7 +33,9 @@ test.describe.serial('merchant and admin dashboards', () => {
     await customer.goto(orderUrl);
     await customer.getByRole('button', { name: /Pay .* securely/ }).click();
     await customer.getByRole('button', { name: 'Simulate successful payment' }).click();
-    await expect(customer.getByRole('heading', { name: 'Payment confirmed' })).toBeVisible({ timeout: 20_000 });
+    await expect(customer.getByRole('heading', { name: 'Payment confirmed' })).toBeVisible({
+      timeout: 20_000,
+    });
     await customer.goto(orderUrl);
     const code = (await customer.getByLabel('Collection code').textContent())!.trim();
 
@@ -54,7 +62,10 @@ test.describe.serial('merchant and admin dashboards', () => {
     await expect(page.getByRole('columnheader', { name: 'Home vendors' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'GMV (goods, before refunds)' })).toBeVisible();
     // Audit log shows the payments and merchant actions from the previous test.
-    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Platform' }).click();
+    await page
+      .getByRole('navigation', { name: 'Admin' })
+      .getByRole('link', { name: 'Platform' })
+      .click();
     await expect(page.getByRole('cell', { name: 'payment.succeeded' }).first()).toBeVisible();
   });
 

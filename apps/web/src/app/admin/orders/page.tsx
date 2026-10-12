@@ -22,20 +22,54 @@ export default function AdminOrders() {
   const [segment, setSegment] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
-  const { data, loading, error } = useApi<{ items: Row[]; total: number; pageSize: number }>(`/admin/orders?page=${page}&pageSize=50${status ? `&status=${status}` : ''}${segment ? `&segment=${segment}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+  const { data, loading, error } = useApi<{ items: Row[]; total: number; pageSize: number }>(
+    `/admin/orders?page=${page}&pageSize=50${status ? `&status=${status}` : ''}${segment ? `&segment=${segment}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+  );
   return (
     <div className="stack">
       <div className="row">
-        <input type="search" aria-label="Order number" placeholder="Order number" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 220 }} />
-        <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 260 }}>
+        <input
+          type="search"
+          aria-label="Order number"
+          placeholder="Order number"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          style={{ maxWidth: 220 }}
+        />
+        <select
+          aria-label="Status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          style={{ maxWidth: 260 }}
+        >
           <option value="">All statuses</option>
-          {['PENDING_MERCHANT_CONFIRMATION', 'AWAITING_PAYMENT', 'PAYMENT_PENDING_VERIFICATION', 'PAID', 'ACCEPTED_FOR_FULFILMENT', 'PREPARING', 'READY_FOR_COLLECTION', 'DISPATCHED', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUND_PENDING', 'REFUNDED', 'DISPUTED'].map((s) => (
+          {[
+            'PENDING_MERCHANT_CONFIRMATION',
+            'AWAITING_PAYMENT',
+            'PAYMENT_PENDING_VERIFICATION',
+            'PAID',
+            'ACCEPTED_FOR_FULFILMENT',
+            'PREPARING',
+            'READY_FOR_COLLECTION',
+            'DISPATCHED',
+            'DELIVERED',
+            'COMPLETED',
+            'CANCELLED',
+            'REFUND_PENDING',
+            'REFUNDED',
+            'DISPUTED',
+          ].map((s) => (
             <option key={s} value={s}>
               {s.replace(/_/g, ' ').toLowerCase()}
             </option>
           ))}
         </select>
-        <select aria-label="Segment" value={segment} onChange={(e) => setSegment(e.target.value)} style={{ maxWidth: 200 }}>
+        <select
+          aria-label="Segment"
+          value={segment}
+          onChange={(e) => setSegment(e.target.value)}
+          style={{ maxWidth: 200 }}
+        >
           <option value="">All segments</option>
           <option value="GALAXY_MALL">Galaxy Mall</option>
           <option value="HOME_VENDOR">Home vendors</option>
@@ -79,13 +113,21 @@ export default function AdminOrders() {
       )}
       {data && data.total > data.pageSize && (
         <div className="row">
-          <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
+          <button
+            className="btn btn-secondary btn-sm"
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
             Previous
           </button>
           <span className="meta">
             {data.total} orders · page {page}
           </span>
-          <button className="btn btn-secondary btn-sm" disabled={page * data.pageSize >= data.total} onClick={() => setPage(page + 1)}>
+          <button
+            className="btn btn-secondary btn-sm"
+            disabled={page * data.pageSize >= data.total}
+            onClick={() => setPage(page + 1)}
+          >
             Next
           </button>
         </div>

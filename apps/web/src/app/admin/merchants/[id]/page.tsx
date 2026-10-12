@@ -25,11 +25,40 @@ interface Detail {
   providerSubaccountCode: string | null;
   payout: { bankCode: string; accountNumberMasked: string; accountName: string } | null;
   members: { role: string; user: { name: string; email: string; phone: string | null } }[];
-  locations: { id: string; kind: string; label: string; publicAddress: string | null; privateAddress: string | null; area: { name: string }; unitLabel: string | null }[];
+  locations: {
+    id: string;
+    kind: string;
+    label: string;
+    publicAddress: string | null;
+    privateAddress: string | null;
+    area: { name: string };
+    unitLabel: string | null;
+  }[];
   serviceAreas: { area: { name: string }; deliveryFeeMinor: number }[];
   fulfilmentOpts: { method: string; enabled: boolean; collectionPoint: { name: string } | null }[];
-  affiliations: { id: string; status: string; unitLabel: string | null; market: { name: string } }[];
-  verifications: { id: string; pathway: string; status: string; submittedAt: string; decidedAt: string | null; decisionNotes: string | null; requestNote: string | null; expiresAt: string | null; documents: { id: string; type: string; originalName: string; sizeBytes: number; createdAt: string }[] }[];
+  affiliations: {
+    id: string;
+    status: string;
+    unitLabel: string | null;
+    market: { name: string };
+  }[];
+  verifications: {
+    id: string;
+    pathway: string;
+    status: string;
+    submittedAt: string;
+    decidedAt: string | null;
+    decisionNotes: string | null;
+    requestNote: string | null;
+    expiresAt: string | null;
+    documents: {
+      id: string;
+      type: string;
+      originalName: string;
+      sizeBytes: number;
+      createdAt: string;
+    }[];
+  }[];
   requiredDocuments: { type: string; label: string; provided: boolean }[];
   _count: { listings: number; orders: number };
 }
@@ -80,13 +109,22 @@ export default function AdminMerchant() {
             <dt>Public area</dt>
             <dd>{m.publicAreaLabel}</dd>
             <dt>Payout</dt>
-            <dd>{m.payout ? `${m.payout.accountName} · ${m.payout.accountNumberMasked} · bank ${m.payout.bankCode}` : 'Not set'}</dd>
+            <dd>
+              {m.payout
+                ? `${m.payout.accountName} · ${m.payout.accountNumberMasked} · bank ${m.payout.bankCode}`
+                : 'Not set'}
+            </dd>
             <dt>Settlement</dt>
             <dd>
-              {m.settlementMode.replace('_', ' ').toLowerCase()} {m.providerSubaccountCode && `(${m.providerSubaccountCode})`}
+              {m.settlementMode.replace('_', ' ').toLowerCase()}{' '}
+              {m.providerSubaccountCode && `(${m.providerSubaccountCode})`}
             </dd>
             <dt>Team</dt>
-            <dd>{m.members.map((x) => `${x.user.name} <${x.user.email}> (${x.role.toLowerCase()})`).join(', ')}</dd>
+            <dd>
+              {m.members
+                .map((x) => `${x.user.name} <${x.user.email}> (${x.role.toLowerCase()})`)
+                .join(', ')}
+            </dd>
             <dt>Activity</dt>
             <dd>
               {m._count.listings} listings · {m._count.orders} orders
@@ -98,24 +136,44 @@ export default function AdminMerchant() {
         </section>
         <section className="card stack-sm">
           <h3>Locations &amp; fulfilment</h3>
-          <p className="meta mb-0">Private addresses are shown to staff for verification only; your access is audited.</p>
+          <p className="meta mb-0">
+            Private addresses are shown to staff for verification only; your access is audited.
+          </p>
           {m.locations.map((l) => (
             <div key={l.id} className="small">
-              <strong>{l.label}</strong> ({l.kind === 'PRIVATE_FULFILMENT' ? 'private' : 'public'}) — {l.publicAddress ?? l.privateAddress}, {l.area.name} {l.unitLabel && `· unit ${l.unitLabel}`}
+              <strong>{l.label}</strong> ({l.kind === 'PRIVATE_FULFILMENT' ? 'private' : 'public'})
+              — {l.publicAddress ?? l.privateAddress}, {l.area.name}{' '}
+              {l.unitLabel && `· unit ${l.unitLabel}`}
             </div>
           ))}
-          <div className="small">Methods: {m.fulfilmentOpts.filter((o) => o.enabled).map((o) => `${FULFILMENT_LABEL[o.method]}${o.collectionPoint ? ` (${o.collectionPoint.name})` : ''}`).join(', ') || '—'}</div>
-          {m.serviceAreas.length > 0 && <div className="small">Delivers to: {m.serviceAreas.map((s) => `${s.area.name} ${naira(s.deliveryFeeMinor)}`).join(', ')}</div>}
+          <div className="small">
+            Methods:{' '}
+            {m.fulfilmentOpts
+              .filter((o) => o.enabled)
+              .map(
+                (o) =>
+                  `${FULFILMENT_LABEL[o.method]}${o.collectionPoint ? ` (${o.collectionPoint.name})` : ''}`,
+              )
+              .join(', ') || '—'}
+          </div>
+          {m.serviceAreas.length > 0 && (
+            <div className="small">
+              Delivers to:{' '}
+              {m.serviceAreas.map((s) => `${s.area.name} ${naira(s.deliveryFeeMinor)}`).join(', ')}
+            </div>
+          )}
           {m.affiliations.map((a) => (
             <div key={a.id} className="small">
-              Market: {a.market.name} {a.unitLabel && `(${a.unitLabel})`} <StatusBadge status={a.status} />
+              Market: {a.market.name} {a.unitLabel && `(${a.unitLabel})`}{' '}
+              <StatusBadge status={a.status} />
             </div>
           ))}
         </section>
         {v && (
           <section className="card stack-sm">
             <h3>
-              Verification — {v.pathway.replace(/_/g, ' ').toLowerCase()} <StatusBadge status={v.status} />
+              Verification — {v.pathway.replace(/_/g, ' ').toLowerCase()}{' '}
+              <StatusBadge status={v.status} />
             </h3>
             <ul className="small" style={{ paddingLeft: 18 }}>
               {m.requiredDocuments.map((d) => (
@@ -126,7 +184,11 @@ export default function AdminMerchant() {
             </ul>
             {v.documents.map((d) => (
               <div key={d.id} className="small">
-                <a href={`/api/admin/verification-documents/${d.id}`} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={`/api/admin/verification-documents/${d.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {d.type.replace(/_/g, ' ').toLowerCase()} — {d.originalName}
                 </a>{' '}
                 <span className="meta">
@@ -142,7 +204,9 @@ export default function AdminMerchant() {
       </div>
       <aside className="card stack-sm">
         <h3>Decision</h3>
-        <label htmlFor="note">Note / reason (recorded in audit log; shared with merchant for rejections &amp; requests)</label>
+        <label htmlFor="note">
+          Note / reason (recorded in audit log; shared with merchant for rejections &amp; requests)
+        </label>
         <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
         {m.status === 'PENDING_REVIEW' && (
           <>
@@ -152,7 +216,10 @@ export default function AdminMerchant() {
             <button className="btn btn-secondary btn-block" onClick={() => decide('request-info')}>
               Request more information
             </button>
-            <button className="btn btn-secondary btn-block" onClick={() => decide('request-info', { riskTier: 'ENHANCED' })}>
+            <button
+              className="btn btn-secondary btn-block"
+              onClick={() => decide('request-info', { riskTier: 'ENHANCED' })}
+            >
               Require enhanced verification
             </button>
             <button className="btn btn-danger btn-block" onClick={() => decide('reject')}>
@@ -170,18 +237,31 @@ export default function AdminMerchant() {
             Reinstate merchant
           </button>
         )}
-        <button className="btn btn-secondary btn-block" onClick={() => decide('risk-tier', { riskTier: m.riskTier === 'ENHANCED' ? 'STANDARD' : 'ENHANCED' })}>
+        <button
+          className="btn btn-secondary btn-block"
+          onClick={() =>
+            decide('risk-tier', { riskTier: m.riskTier === 'ENHANCED' ? 'STANDARD' : 'ENHANCED' })
+          }
+        >
           Set risk tier: {m.riskTier === 'ENHANCED' ? 'standard' : 'enhanced'}
         </button>
         <hr />
         <h3>Settlement (finance)</h3>
-        <input aria-label="Provider subaccount code" type="text" placeholder="Provider subaccount code (ACCT_…)" value={sub} onChange={(e) => setSub(e.target.value)} />
+        <input
+          aria-label="Provider subaccount code"
+          type="text"
+          placeholder="Provider subaccount code (ACCT_…)"
+          value={sub}
+          onChange={(e) => setSub(e.target.value)}
+        />
         <div className="row">
           <button
             className="btn btn-secondary btn-sm"
             onClick={async () => {
               try {
-                await api(`/admin/merchants/${id}/settlement-mode`, { body: { mode: 'PROVIDER_SPLIT', providerSubaccountCode: sub } });
+                await api(`/admin/merchants/${id}/settlement-mode`, {
+                  body: { mode: 'PROVIDER_SPLIT', providerSubaccountCode: sub },
+                });
                 await reload();
               } catch (e) {
                 setMsg({ tone: 'error', text: e instanceof ApiError ? e.message : 'Failed' });
@@ -190,7 +270,15 @@ export default function AdminMerchant() {
           >
             Use provider split
           </button>
-          <button className="btn btn-link" onClick={async () => (await api(`/admin/merchants/${id}/settlement-mode`, { body: { mode: 'MANUAL_RECORD', providerSubaccountCode: null } }).catch(() => undefined), reload())}>
+          <button
+            className="btn btn-link"
+            onClick={async () => (
+              await api(`/admin/merchants/${id}/settlement-mode`, {
+                body: { mode: 'MANUAL_RECORD', providerSubaccountCode: null },
+              }).catch(() => undefined),
+              reload()
+            )}
+          >
             Manual payouts
           </button>
         </div>

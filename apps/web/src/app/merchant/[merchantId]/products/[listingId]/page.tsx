@@ -38,30 +38,66 @@ export default function EditProduct() {
               <Link href={`/p/${l.slug}`} className="btn btn-secondary btn-sm">
                 View live
               </Link>
-              <button className="btn btn-secondary btn-sm" onClick={() => act(() => api(`${path}/status`, { body: { status: 'PAUSED' } }), 'Product paused')}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() =>
+                  act(() => api(`${path}/status`, { body: { status: 'PAUSED' } }), 'Product paused')
+                }
+              >
                 Pause
               </button>
             </>
           )}
           {(l.status === 'PAUSED' || l.status === 'DRAFT') && (
-            <button className="btn btn-sm" onClick={() => act(() => api(`${path}/status`, { body: { status: 'ACTIVE' } }), 'Product published')}>
+            <button
+              className="btn btn-sm"
+              onClick={() =>
+                act(
+                  () => api(`${path}/status`, { body: { status: 'ACTIVE' } }),
+                  'Product published',
+                )
+              }
+            >
               Publish
             </button>
           )}
         </div>
       </div>
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
-      {l.status === 'BLOCKED' && <Alert tone="error">This product was removed by KDCN moderation and cannot be edited.</Alert>}
-      {l.product.moderationStatus === 'PENDING_REVIEW' && <Alert tone="warn">Awaiting KDCN review (restricted category). It will appear to customers once approved.</Alert>}
-      {l.product.moderationStatus === 'REJECTED' && <Alert tone="error">Not approved by KDCN: {l.product.moderationNote}</Alert>}
-      {m.status !== 'APPROVED' && <Alert tone="info">Products go live once your store is approved.</Alert>}
+      {l.status === 'BLOCKED' && (
+        <Alert tone="error">
+          This product was removed by KDCN moderation and cannot be edited.
+        </Alert>
+      )}
+      {l.product.moderationStatus === 'PENDING_REVIEW' && (
+        <Alert tone="warn">
+          Awaiting KDCN review (restricted category). It will appear to customers once approved.
+        </Alert>
+      )}
+      {l.product.moderationStatus === 'REJECTED' && (
+        <Alert tone="error">Not approved by KDCN: {l.product.moderationNote}</Alert>
+      )}
+      {m.status !== 'APPROVED' && (
+        <Alert tone="info">Products go live once your store is approved.</Alert>
+      )}
       <section className="card stack-sm">
         <h3>Photos</h3>
         <div className="row">
           {l.product.images.map((img) => (
             <div key={img.id} className="stack-sm" style={{ width: 110 }}>
-              <img src={img.url} alt={img.alt} width={110} height={110} style={{ objectFit: 'cover', borderRadius: 8, width: 110, height: 110 }} />
-              <button className="btn btn-link small" onClick={() => act(() => api(`${path}/images/${img.id}`, { method: 'DELETE' }), 'Photo removed')}>
+              <img
+                src={img.url}
+                alt={img.alt}
+                width={110}
+                height={110}
+                style={{ objectFit: 'cover', borderRadius: 8, width: 110, height: 110 }}
+              />
+              <button
+                className="btn btn-link small"
+                onClick={() =>
+                  act(() => api(`${path}/images/${img.id}`, { method: 'DELETE' }), 'Photo removed')
+                }
+              >
                 Remove
               </button>
             </div>
@@ -89,9 +125,25 @@ export default function EditProduct() {
         )}
         <p className="meta mb-0">Location data (GPS) is removed from photos automatically.</p>
       </section>
-      {l.status !== 'BLOCKED' && <ListingForm merchantId={m.id} merchantType={m.type} existing={l} onSaved={(x) => (setData(x as ListingData & { slug: string }), setMsg({ tone: 'success', text: 'Saved' }))} />}
+      {l.status !== 'BLOCKED' && (
+        <ListingForm
+          merchantId={m.id}
+          merchantType={m.type}
+          existing={l}
+          onSaved={(x) => (
+            setData(x as ListingData & { slug: string }), setMsg({ tone: 'success', text: 'Saved' })
+          )}
+        />
+      )}
       {l.status !== 'REMOVED' && l.status !== 'BLOCKED' && (
-        <button className="btn btn-link" style={{ color: 'var(--red-700)' }} onClick={() => confirm('Remove this product from your store?') && act(() => api(`${path}/status`, { body: { status: 'REMOVED' } }), 'Product removed')}>
+        <button
+          className="btn btn-link"
+          style={{ color: 'var(--red-700)' }}
+          onClick={() =>
+            confirm('Remove this product from your store?') &&
+            act(() => api(`${path}/status`, { body: { status: 'REMOVED' } }), 'Product removed')
+          }
+        >
           Remove product
         </button>
       )}

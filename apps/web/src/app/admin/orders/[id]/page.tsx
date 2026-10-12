@@ -16,7 +16,13 @@ interface AdminOrder {
   merchant: { displayName: string };
   merchantId: string;
   customer: { name: string; email: string | null; phone: string | null };
-  items: { id: string; title: string; variantName: string; quantity: number; lineTotalMinor: number }[];
+  items: {
+    id: string;
+    title: string;
+    variantName: string;
+    quantity: number;
+    lineTotalMinor: number;
+  }[];
   subtotalMinor: number;
   deliveryFeeMinor: number;
   serviceFeeMinor: number;
@@ -24,10 +30,31 @@ interface AdminOrder {
   commissionBps: number;
   commissionMinor: number;
   fulfilmentMethod: string;
-  fulfilment: { status: string; deliveryAddress: string | null; collectionPoint: { name: string } | null; failedAttempts: number } | null;
-  payments: { id: string; reference: string; provider: string; status: string; amountMinor: number; providerFeeMinor: number | null; isDuplicate: boolean; testMode: boolean; failureReason: string | null; createdAt: string }[];
+  fulfilment: {
+    status: string;
+    deliveryAddress: string | null;
+    collectionPoint: { name: string } | null;
+    failedAttempts: number;
+  } | null;
+  payments: {
+    id: string;
+    reference: string;
+    provider: string;
+    status: string;
+    amountMinor: number;
+    providerFeeMinor: number | null;
+    isDuplicate: boolean;
+    testMode: boolean;
+    failureReason: string | null;
+    createdAt: string;
+  }[];
   refunds: { id: string; amountMinor: number; status: string; reason: string; createdAt: string }[];
-  settlement: { status: string; merchantNetMinor: number; refundedMinor: number; mode: string } | null;
+  settlement: {
+    status: string;
+    merchantNetMinor: number;
+    refundedMinor: number;
+    mode: string;
+  } | null;
   timeline: { label: string; note: string | null; at: string; actor: string }[];
 }
 
@@ -68,11 +95,13 @@ export default function AdminOrder() {
             <dd>{o.segment}</dd>
             <dt>Fulfilment</dt>
             <dd>
-              {FULFILMENT_LABEL[o.fulfilmentMethod]} · {o.fulfilment?.status.toLowerCase()} {o.fulfilment?.collectionPoint?.name} {o.fulfilment?.deliveryAddress}
+              {FULFILMENT_LABEL[o.fulfilmentMethod]} · {o.fulfilment?.status.toLowerCase()}{' '}
+              {o.fulfilment?.collectionPoint?.name} {o.fulfilment?.deliveryAddress}
             </dd>
             <dt>Totals</dt>
             <dd>
-              Goods {naira(o.subtotalMinor)} + delivery {naira(o.deliveryFeeMinor)} + service {naira(o.serviceFeeMinor)} = <strong>{naira(o.totalMinor)}</strong>
+              Goods {naira(o.subtotalMinor)} + delivery {naira(o.deliveryFeeMinor)} + service{' '}
+              {naira(o.serviceFeeMinor)} = <strong>{naira(o.totalMinor)}</strong>
             </dd>
             <dt>Commission</dt>
             <dd>
@@ -82,7 +111,8 @@ export default function AdminOrder() {
               <>
                 <dt>Settlement</dt>
                 <dd>
-                  {o.settlement.status} · merchant net {naira(o.settlement.merchantNetMinor)} · refunded {naira(o.settlement.refundedMinor)} · {o.settlement.mode}
+                  {o.settlement.status} · merchant net {naira(o.settlement.merchantNetMinor)} ·
+                  refunded {naira(o.settlement.refundedMinor)} · {o.settlement.mode}
                 </dd>
               </>
             )}
@@ -112,7 +142,8 @@ export default function AdminOrder() {
                 {o.payments.map((p) => (
                   <tr key={p.id}>
                     <td className="small">
-                      {p.reference} {p.testMode && <span className="badge badge-test">TEST</span>} {p.isDuplicate && <span className="badge badge-red">duplicate</span>}
+                      {p.reference} {p.testMode && <span className="badge badge-test">TEST</span>}{' '}
+                      {p.isDuplicate && <span className="badge badge-red">duplicate</span>}
                       <div className="meta">{p.failureReason}</div>
                     </td>
                     <td>
@@ -122,7 +153,19 @@ export default function AdminOrder() {
                     <td className="num">{naira(p.providerFeeMinor)}</td>
                     <td>
                       {p.status !== 'SUCCEEDED' && (
-                        <button className="btn btn-sm btn-secondary" onClick={() => run(() => api(`/admin/payments/${encodeURIComponent(p.reference)}/reconcile`, { method: 'POST' }), 'Re-verified with provider')}>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() =>
+                            run(
+                              () =>
+                                api(
+                                  `/admin/payments/${encodeURIComponent(p.reference)}/reconcile`,
+                                  { method: 'POST' },
+                                ),
+                              'Re-verified with provider',
+                            )
+                          }
+                        >
                           Re-verify
                         </button>
                       )}
@@ -136,7 +179,8 @@ export default function AdminOrder() {
           {o.refunds.length === 0 && <p className="muted small">None.</p>}
           {o.refunds.map((r) => (
             <div key={r.id} className="small">
-              {naira(r.amountMinor)} — {r.reason} <StatusBadge status={r.status} /> <span className="meta">{date(r.createdAt)}</span>
+              {naira(r.amountMinor)} — {r.reason} <StatusBadge status={r.status} />{' '}
+              <span className="meta">{date(r.createdAt)}</span>
             </div>
           ))}
         </section>
@@ -145,17 +189,63 @@ export default function AdminOrder() {
         <section className="card stack-sm">
           <h3>Actions</h3>
           <label htmlFor="reason">Reason (audited)</label>
-          <input id="reason" type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
-          {!['CANCELLED', 'REFUNDED', 'REFUND_PENDING', 'COMPLETED', 'DELIVERED', 'DISPUTED'].includes(o.status) && (
-            <button className="btn btn-danger btn-block" disabled={reason.length < 5} onClick={() => run(() => api(`/admin/orders/${o.id}/cancel`, { body: { reason } }), 'Order cancelled')}>
-              Cancel order {o.status !== 'PENDING_MERCHANT_CONFIRMATION' && o.status !== 'AWAITING_PAYMENT' ? '(full refund)' : ''}
+          <input
+            id="reason"
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          {![
+            'CANCELLED',
+            'REFUNDED',
+            'REFUND_PENDING',
+            'COMPLETED',
+            'DELIVERED',
+            'DISPUTED',
+          ].includes(o.status) && (
+            <button
+              className="btn btn-danger btn-block"
+              disabled={reason.length < 5}
+              onClick={() =>
+                run(
+                  () => api(`/admin/orders/${o.id}/cancel`, { body: { reason } }),
+                  'Order cancelled',
+                )
+              }
+            >
+              Cancel order{' '}
+              {o.status !== 'PENDING_MERCHANT_CONFIRMATION' && o.status !== 'AWAITING_PAYMENT'
+                ? '(full refund)'
+                : ''}
             </button>
           )}
           {o.payments.some((p) => p.status === 'SUCCEEDED') && (
             <>
               <label htmlFor="amt">Goodwill / partial refund (₦)</label>
-              <input id="amt" type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <button className="btn btn-secondary btn-block" disabled={!amount || reason.length < 5} onClick={() => run(() => api(`/admin/orders/${o.id}/refunds`, { body: { amountMinor: Math.round(Number(amount) * 100), reason, idempotencyKey: refundKey } }), 'Refund requested — finance approval required')}>
+              <input
+                id="amt"
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <button
+                className="btn btn-secondary btn-block"
+                disabled={!amount || reason.length < 5}
+                onClick={() =>
+                  run(
+                    () =>
+                      api(`/admin/orders/${o.id}/refunds`, {
+                        body: {
+                          amountMinor: Math.round(Number(amount) * 100),
+                          reason,
+                          idempotencyKey: refundKey,
+                        },
+                      }),
+                    'Refund requested — finance approval required',
+                  )
+                }
+              >
                 Request refund
               </button>
             </>
@@ -163,7 +253,9 @@ export default function AdminOrder() {
         </section>
         <section className="card">
           <h3>History</h3>
-          <Timeline events={o.timeline.map((t) => ({ ...t, note: `${t.note ?? ''} (${t.actor})` }))} />
+          <Timeline
+            events={o.timeline.map((t) => ({ ...t, note: `${t.note ?? ''} (${t.actor})` }))}
+          />
         </section>
       </aside>
     </div>

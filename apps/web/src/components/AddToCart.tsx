@@ -16,7 +16,17 @@ interface Variant {
   availability: Availability;
 }
 
-export function AddToCart({ variants, minQty, maxQty, requiresConfirmation }: { variants: Variant[]; minQty: number; maxQty: number; requiresConfirmation: boolean }) {
+export function AddToCart({
+  variants,
+  minQty,
+  maxQty,
+  requiresConfirmation,
+}: {
+  variants: Variant[];
+  minQty: number;
+  maxQty: number;
+  requiresConfirmation: boolean;
+}) {
   const firstAvailable = variants.find((v) => v.availability.purchasable) ?? variants[0];
   const [variantId, setVariantId] = useState(firstAvailable?.id);
   const [qty, setQty] = useState(minQty);
@@ -40,9 +50,17 @@ export function AddToCart({ variants, minQty, maxQty, requiresConfirmation }: { 
           <legend>Option</legend>
           {variants.map((x) => (
             <label key={x.id} className="radio-card">
-              <input type="radio" name="variant" value={x.id} checked={x.id === v.id} onChange={() => setVariantId(x.id)} disabled={!x.availability.purchasable} />
+              <input
+                type="radio"
+                name="variant"
+                value={x.id}
+                checked={x.id === v.id}
+                onChange={() => setVariantId(x.id)}
+                disabled={!x.availability.purchasable}
+              />
               <span>
-                {x.name} — {naira(x.priceMinor)} <span className="meta">({x.availability.label})</span>
+                {x.name} — {naira(x.priceMinor)}{' '}
+                <span className="meta">({x.availability.label})</span>
               </span>
             </label>
           ))}
@@ -50,10 +68,23 @@ export function AddToCart({ variants, minQty, maxQty, requiresConfirmation }: { 
       )}
       <div className="field" style={{ maxWidth: 160 }}>
         <label htmlFor="qty">Quantity</label>
-        <input id="qty" type="number" min={minQty} max={maxQty} value={qty} onChange={(e) => setQty(Math.max(minQty, Math.min(maxQty, Number(e.target.value) || minQty)))} />
+        <input
+          id="qty"
+          type="number"
+          min={minQty}
+          max={maxQty}
+          value={qty}
+          onChange={(e) =>
+            setQty(Math.max(minQty, Math.min(maxQty, Number(e.target.value) || minQty)))
+          }
+        />
         {minQty > 1 && <div className="hint">Minimum order: {minQty}</div>}
       </div>
-      {requiresConfirmation && <Alert tone="info">The seller confirms availability after you order. You only pay once they confirm.</Alert>}
+      {requiresConfirmation && (
+        <Alert tone="info">
+          The seller confirms availability after you order. You only pay once they confirm.
+        </Alert>
+      )}
       {error && <Alert tone="error">{error}</Alert>}
       <div className="sticky-cta row">
         <button
@@ -73,7 +104,11 @@ export function AddToCart({ variants, minQty, maxQty, requiresConfirmation }: { 
             }
           }}
         >
-          {!v.availability.purchasable ? 'Out of stock' : state === 'adding' ? 'Adding…' : 'Add to cart'}
+          {!v.availability.purchasable
+            ? 'Out of stock'
+            : state === 'adding'
+              ? 'Adding…'
+              : 'Add to cart'}
         </button>
         {state === 'added' && (
           <Link href="/cart" className="btn btn-secondary">
@@ -81,7 +116,11 @@ export function AddToCart({ variants, minQty, maxQty, requiresConfirmation }: { 
           </Link>
         )}
       </div>
-      {state === 'added' && <p className="small" role="status">Added to your cart.</p>}
+      {state === 'added' && (
+        <p className="small" role="status">
+          Added to your cart.
+        </p>
+      )}
     </div>
   );
 }
@@ -91,7 +130,12 @@ export function ShareButtons({ title, path }: { title: string; path: string }) {
   const url = typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
   return (
     <div className="row">
-      <a className="btn btn-secondary btn-sm" href={`https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`} target="_blank" rel="noopener noreferrer">
+      <a
+        className="btn btn-secondary btn-sm"
+        href={`https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         Share on WhatsApp
       </a>
       <button
@@ -111,14 +155,31 @@ export function ShareButtons({ title, path }: { title: string; path: string }) {
   );
 }
 
-export function EnquiryForm({ merchantSlug, listingId }: { merchantSlug: string; listingId?: string }) {
+export function EnquiryForm({
+  merchantSlug,
+  listingId,
+}: {
+  merchantSlug: string;
+  listingId?: string;
+}) {
   const { me } = useAuth();
   const [open, setOpen] = useState(false);
   const [msg, setMsg] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  if (!me) return <p className="small"><Link href="/login">Sign in</Link> to ask the seller a question.</p>;
-  if (!open) return <button className="btn btn-link" onClick={() => setOpen(true)}>Ask the seller a question</button>;
-  if (status === 'sent') return <Alert tone="success">Question sent. You&apos;ll see the reply in your account.</Alert>;
+  if (!me)
+    return (
+      <p className="small">
+        <Link href="/login">Sign in</Link> to ask the seller a question.
+      </p>
+    );
+  if (!open)
+    return (
+      <button className="btn btn-link" onClick={() => setOpen(true)}>
+        Ask the seller a question
+      </button>
+    );
+  if (status === 'sent')
+    return <Alert tone="success">Question sent. You&apos;ll see the reply in your account.</Alert>;
   return (
     <form
       className="stack-sm"
@@ -134,7 +195,14 @@ export function EnquiryForm({ merchantSlug, listingId }: { merchantSlug: string;
       }}
     >
       <label htmlFor="enq">Your question</label>
-      <textarea id="enq" value={msg} onChange={(e) => setMsg(e.target.value)} minLength={5} maxLength={2000} required />
+      <textarea
+        id="enq"
+        value={msg}
+        onChange={(e) => setMsg(e.target.value)}
+        minLength={5}
+        maxLength={2000}
+        required
+      />
       {status === 'error' && <Alert tone="error">Could not send your question.</Alert>}
       <button className="btn btn-secondary btn-sm" disabled={status === 'sending'}>
         Send question
@@ -143,7 +211,13 @@ export function EnquiryForm({ merchantSlug, listingId }: { merchantSlug: string;
   );
 }
 
-export function ReportLink({ targetType, targetId }: { targetType: 'LISTING' | 'MERCHANT'; targetId: string }) {
+export function ReportLink({
+  targetType,
+  targetId,
+}: {
+  targetType: 'LISTING' | 'MERCHANT';
+  targetId: string;
+}) {
   const { me } = useAuth();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -162,7 +236,9 @@ export function ReportLink({ targetType, targetId }: { targetType: 'LISTING' | '
       className="stack-sm card"
       onSubmit={async (e) => {
         e.preventDefault();
-        await api('/reports', { body: { targetType, targetId, reason, details } }).catch(() => undefined);
+        await api('/reports', { body: { targetType, targetId, reason, details } }).catch(
+          () => undefined,
+        );
         setDone(true);
       }}
     >
@@ -176,7 +252,12 @@ export function ReportLink({ targetType, targetId }: { targetType: 'LISTING' | '
         <option value="other">Other</option>
       </select>
       <label htmlFor="rep-details">Details (optional)</label>
-      <textarea id="rep-details" value={details} onChange={(e) => setDetails(e.target.value)} maxLength={2000} />
+      <textarea
+        id="rep-details"
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        maxLength={2000}
+      />
       <button className="btn btn-secondary btn-sm">Submit report</button>
     </form>
   );

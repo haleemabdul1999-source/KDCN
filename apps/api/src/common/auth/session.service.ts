@@ -9,7 +9,10 @@ import { AuthContext } from './auth.types';
 export class SessionService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, opts: { isStaff: boolean; mfaVerified: boolean; ip?: string; userAgent?: string }) {
+  async create(
+    userId: string,
+    opts: { isStaff: boolean; mfaVerified: boolean; ip?: string; userAgent?: string },
+  ) {
     const token = randomToken(32);
     const ttlHours = opts.isStaff ? env().STAFF_SESSION_TTL_HOURS : env().SESSION_TTL_HOURS;
     const expiresAt = new Date(Date.now() + ttlHours * 3600_000);
@@ -36,13 +39,22 @@ export class SessionService {
     if (session.user.status !== UserStatus.ACTIVE) return null;
     // Touch lastSeenAt at most once a minute to avoid write amplification.
     if (Date.now() - session.lastSeenAt.getTime() > 60_000) {
-      await this.prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } });
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { lastSeenAt: new Date() },
+      });
     }
     const u = session.user;
     return {
       sessionId: session.id,
       mfaVerified: session.mfaVerified,
-      user: { id: u.id, email: u.email, name: u.name, staffRoles: u.staffRoles, mfaEnabled: u.mfaEnabled },
+      user: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        staffRoles: u.staffRoles,
+        mfaEnabled: u.mfaEnabled,
+      },
     };
   }
 
@@ -51,10 +63,16 @@ export class SessionService {
   }
 
   async revoke(sessionId: string) {
-    await this.prisma.session.updateMany({ where: { id: sessionId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.prisma.session.updateMany({
+      where: { id: sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   async revokeAllForUser(userId: string) {
-    await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.prisma.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }

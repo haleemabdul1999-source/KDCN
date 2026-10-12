@@ -22,42 +22,85 @@ describe('Scenario B — Home-based vendor', () => {
   afterAll(() => ctx.app.close());
 
   it('onboards, sells and delivers without ever exposing the residential address publicly', async () => {
-    const neutral = await ctx.prisma.collectionPoint.findFirstOrThrow({ where: { marketId: null } });
+    const neutral = await ctx.prisma.collectionPoint.findFirstOrThrow({
+      where: { marketId: null },
+    });
     const { owner, merchantId } = await onboardMerchant(ctx, staff, null, {
       type: MerchantType.HOME_VENDOR,
       name: 'Hauwa Treats',
       homeAddress: SECRET_ADDRESS,
-      serviceAreas: [{ areaName: 'Barnawa', deliveryFeeMinor: 80000 }, { areaName: 'Narayi', deliveryFeeMinor: 100000 }],
-      fulfilment: [{ method: 'MERCHANT_DELIVERY' }, { method: 'COLLECTION_POINT', collectionPointId: neutral.id, feeMinor: 50000 }],
+      serviceAreas: [
+        { areaName: 'Barnawa', deliveryFeeMinor: 80000 },
+        { areaName: 'Narayi', deliveryFeeMinor: 100000 },
+      ],
+      fulfilment: [
+        { method: 'MERCHANT_DELIVERY' },
+        { method: 'COLLECTION_POINT', collectionPointId: neutral.id, feeMinor: 50000 },
+      ],
     });
 
     // Home vendors cannot offer collection from their premises.
-    const homePickup = await owner.put(`/merchant/${merchantId}/fulfilment-options`, { options: [{ method: 'IN_STORE_COLLECTION', enabled: true }] });
+    const homePickup = await owner.put(`/merchant/${merchantId}/fulfilment-options`, {
+      options: [{ method: 'IN_STORE_COLLECTION', enabled: true }],
+    });
     expect(homePickup.status).toBe(400);
 
     const cats = await categoryMap(ctx);
     // Food is an enhanced-review category for home vendors: held for moderation.
-    const cake = await createListing(owner, merchantId, { title: 'Red velvet cake', categorySlug: 'cakes-pastries', stockMode: 'MADE_TO_ORDER', price: 3000000, leadTimeDays: 2 }, cats);
+    const cake = await createListing(
+      owner,
+      merchantId,
+      {
+        title: 'Red velvet cake',
+        categorySlug: 'cakes-pastries',
+        stockMode: 'MADE_TO_ORDER',
+        price: 3000000,
+        leadTimeDays: 2,
+      },
+      cats,
+    );
     expect(cake.product.moderationStatus).toBe('PENDING_REVIEW');
     const anon = new Client(ctx.app);
     expect((await anon.get(`/listings/${cake.slug}`)).status).toBe(404);
     // Prohibited category is refused outright.
-    const med = await owner.post(`/merchant/${merchantId}/listings`, { title: 'Paracetamol', categoryId: cats['medicines'], variants: [{ priceMinor: 50000 }], publish: true });
+    const med = await owner.post(`/merchant/${merchantId}/listings`, {
+      title: 'Paracetamol',
+      categoryId: cats['medicines'],
+      variants: [{ priceMinor: 50000 }],
+      publish: true,
+    });
     expect(med.status).toBe(400);
 
     // Staff moderation approves the product.
-    const productId = (await ctx.prisma.listing.findUniqueOrThrow({ where: { id: cake.id } })).productId;
-    expect((await staff.post(`/admin/moderation/products/${productId}`, { decision: 'APPROVED', note: 'Food handling permit seen' })).status).toBe(200);
+    const productId = (await ctx.prisma.listing.findUniqueOrThrow({ where: { id: cake.id } }))
+      .productId;
+    expect(
+      (
+        await staff.post(`/admin/moderation/products/${productId}`, {
+          decision: 'APPROVED',
+          note: 'Food handling permit seen',
+        })
+      ).status,
+    ).toBe(200);
 
     // Product photo with EXIF GPS is stripped before storage.
-    const img = await owner.upload(`/merchant/${merchantId}/listings/${cake.id}/images`, 'file', jpegWithExif(), 'cake.jpg');
+    const img = await owner.upload(
+      `/merchant/${merchantId}/listings/${cake.id}/images`,
+      'file',
+      jpegWithExif(),
+      'cake.jpg',
+    );
     expect(img.status).toBe(201);
     const dir = join(process.env.STORAGE_LOCAL_DIR!, 'public', 'products');
-    const newest = readdirSync(dir).map((f) => join(dir, f)).sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+    const newest = readdirSync(dir)
+      .map((f) => join(dir, f))
+      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
     expect(readFileSync(newest).toString('latin1')).not.toContain('GPSLatitude');
 
     // Public surfaces never contain the residential address.
-    const storefront = await anon.get(`/storefronts/${(await ctx.prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } })).slug}`);
+    const storefront = await anon.get(
+      `/storefronts/${(await ctx.prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } })).slug}`,
+    );
     const product = await anon.get(`/listings/${cake.slug}`);
     const search = await anon.get('/search?q=velvet');
     const home = await anon.get('/home');
@@ -87,10 +130,16 @@ describe('Scenario B — Home-based vendor', () => {
     expect(order.status).toBe('PENDING_MERCHANT_CONFIRMATION');
     expect(order.totalMinor).toBe(3000000 + 100000 + 10000);
     // Delivery to an area the vendor does not serve is refused.
-    const bad = await customer.post('/checkout/quote', { merchantId, fulfilmentMethod: 'MERCHANT_DELIVERY', deliveryAreaId: ctx.ref.areas['Rigasa'] });
+    const bad = await customer.post('/checkout/quote', {
+      merchantId,
+      fulfilmentMethod: 'MERCHANT_DELIVERY',
+      deliveryAreaId: ctx.ref.areas['Rigasa'],
+    });
     expect(bad.status).toBe(400);
 
-    expect((await owner.post(`/merchant/${merchantId}/orders/${order.id}/confirm`)).status).toBe(200);
+    expect((await owner.post(`/merchant/${merchantId}/orders/${order.id}/confirm`)).status).toBe(
+      200,
+    );
     expect((await payOrder(customer, order.id)).verify.order.status).toBe('PAID');
 
     // Now the merchant sees the customer's delivery address and phone.
@@ -98,23 +147,52 @@ describe('Scenario B — Home-based vendor', () => {
     expect(mv.body.fulfilment.deliveryAddress).toBe('3 Customer Street, Narayi');
     expect(mv.body.customer.phone).toBe('08039998888');
 
-    for (const action of ['accept', 'preparing']) expect((await owner.post(`/merchant/${merchantId}/orders/${order.id}/${action}`)).status).toBe(200);
-    const dispatched = await owner.post(`/merchant/${merchantId}/orders/${order.id}/dispatch`, { partnerName: 'Own rider', riderName: 'Musa', riderPhone: '08031112222' });
+    for (const action of ['accept', 'preparing'])
+      expect(
+        (await owner.post(`/merchant/${merchantId}/orders/${order.id}/${action}`)).status,
+      ).toBe(200);
+    const dispatched = await owner.post(`/merchant/${merchantId}/orders/${order.id}/dispatch`, {
+      partnerName: 'Own rider',
+      riderName: 'Musa',
+      riderPhone: '08031112222',
+    });
     expect(dispatched.body.status).toBe('DISPATCHED');
     const cv = await customer.get(`/orders/${order.id}`);
     expect(cv.body.fulfilment.rider).toMatchObject({ name: 'Musa', phone: '08031112222' });
     expect(cv.body.fulfilment.liveTracking).toBe(false);
 
-    expect((await owner.post(`/merchant/${merchantId}/orders/${order.id}/delivered`, { note: 'Handed to customer' })).body.status).toBe('DELIVERED');
+    expect(
+      (
+        await owner.post(`/merchant/${merchantId}/orders/${order.id}/delivered`, {
+          note: 'Handed to customer',
+        })
+      ).body.status,
+    ).toBe('DELIVERED');
     const done = await customer.post(`/orders/${order.id}/confirm-receipt`);
     expect(done.body.status).toBe('COMPLETED');
 
     // Verified-purchase review; merchant can respond once but not edit.
-    const review = await customer.post(`/orders/${order.id}/review`, { rating: 5, body: 'Delicious and on time' });
+    const review = await customer.post(`/orders/${order.id}/review`, {
+      rating: 5,
+      body: 'Delicious and on time',
+    });
     expect(review.status).toBe(201);
-    const reviewId = (await ctx.prisma.review.findFirstOrThrow({ where: { orderId: order.id } })).id;
-    expect((await owner.post(`/merchant/${merchantId}/reviews/${reviewId}/respond`, { response: 'Thank you!' })).status).toBe(204);
-    expect((await owner.post(`/merchant/${merchantId}/reviews/${reviewId}/respond`, { response: 'Edited' })).status).toBe(409);
+    const reviewId = (await ctx.prisma.review.findFirstOrThrow({ where: { orderId: order.id } }))
+      .id;
+    expect(
+      (
+        await owner.post(`/merchant/${merchantId}/reviews/${reviewId}/respond`, {
+          response: 'Thank you!',
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (
+        await owner.post(`/merchant/${merchantId}/reviews/${reviewId}/respond`, {
+          response: 'Edited',
+        })
+      ).status,
+    ).toBe(409);
     expect((await customer.post(`/orders/${order.id}/review`, { rating: 1 })).status).toBe(409);
   });
 });

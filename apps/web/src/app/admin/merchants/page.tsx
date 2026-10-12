@@ -15,24 +15,56 @@ interface Row {
   riskTier: string;
   publicAreaLabel: string | null;
   updatedAt: string;
-  verifications: { pathway: string; status: string; submittedAt: string; expiresAt: string | null }[];
+  verifications: {
+    pathway: string;
+    status: string;
+    submittedAt: string;
+    expiresAt: string | null;
+  }[];
 }
 
 function MerchantsList() {
   const [status, setStatus] = useState(useSearchParams().get('status') ?? 'PENDING_REVIEW');
   const [q, setQ] = useState('');
-  const { data, loading, error } = useApi<{ items: Row[]; total: number; counts: Record<string, number> }>(`/admin/merchants?pageSize=50${status ? `&status=${status}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+  const { data, loading, error } = useApi<{
+    items: Row[];
+    total: number;
+    counts: Record<string, number>;
+  }>(
+    `/admin/merchants?pageSize=50${status ? `&status=${status}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+  );
   return (
     <div className="stack">
       <div className="row">
         <div className="chip-row">
-          {['PENDING_REVIEW', 'INFO_REQUESTED', 'APPROVED', 'SUSPENDED', 'REJECTED', 'DRAFT', ''].map((s) => (
-            <button key={s} className="chip" aria-current={status === s} onClick={() => setStatus(s)}>
-              {s ? s.replace('_', ' ').toLowerCase() : 'all'} {s && data?.counts[s] ? `(${data.counts[s]})` : ''}
+          {[
+            'PENDING_REVIEW',
+            'INFO_REQUESTED',
+            'APPROVED',
+            'SUSPENDED',
+            'REJECTED',
+            'DRAFT',
+            '',
+          ].map((s) => (
+            <button
+              key={s}
+              className="chip"
+              aria-current={status === s}
+              onClick={() => setStatus(s)}
+            >
+              {s ? s.replace('_', ' ').toLowerCase() : 'all'}{' '}
+              {s && data?.counts[s] ? `(${data.counts[s]})` : ''}
             </button>
           ))}
         </div>
-        <input type="search" aria-label="Search merchants" placeholder="Search name or email" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+        <input
+          type="search"
+          aria-label="Search merchants"
+          placeholder="Search name or email"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          style={{ maxWidth: 260 }}
+        />
       </div>
       {loading && <Loading />}
       {error && <Alert tone="error">{error.message}</Alert>}
@@ -62,7 +94,11 @@ function MerchantsList() {
                   <td>
                     <StatusBadge status={m.status} />
                   </td>
-                  <td className="small">{m.verifications[0] ? `${m.verifications[0].pathway.toLowerCase().replace(/_/g, ' ')} · ${m.verifications[0].status.toLowerCase()}` : '—'}</td>
+                  <td className="small">
+                    {m.verifications[0]
+                      ? `${m.verifications[0].pathway.toLowerCase().replace(/_/g, ' ')} · ${m.verifications[0].status.toLowerCase()}`
+                      : '—'}
+                  </td>
                   <td className="small">{date(m.updatedAt)}</td>
                 </tr>
               ))}

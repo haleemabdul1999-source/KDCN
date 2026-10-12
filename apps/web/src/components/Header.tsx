@@ -22,7 +22,13 @@ function SearchBox() {
       <label htmlFor="site-search" className="sr-only">
         Search products, stores and markets
       </label>
-      <input id="site-search" type="search" placeholder="Search products, stores, markets…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input
+        id="site-search"
+        type="search"
+        placeholder="Search products, stores, markets…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
       <button type="submit">Search</button>
     </form>
   );
@@ -50,8 +56,14 @@ export function Header() {
           {me ? (
             <>
               {isStaff && <Link href="/admin">Admin</Link>}
-              {me.markets.length > 0 && <Link href={`/operator/${me.markets[0].id}`}>Market portal</Link>}
-              {me.merchants.length > 0 ? <Link href={`/merchant/${me.merchants[0].id}`}>My store</Link> : <Link href="/sell">Sell</Link>}
+              {me.markets.length > 0 && (
+                <Link href={`/operator/${me.markets[0].id}`}>Market portal</Link>
+              )}
+              {me.merchants.length > 0 ? (
+                <Link href={`/merchant/${me.merchants[0].id}`}>My store</Link>
+              ) : (
+                <Link href="/sell">Sell</Link>
+              )}
               <Link href="/account">Account</Link>
               <button
                 className="btn-link"

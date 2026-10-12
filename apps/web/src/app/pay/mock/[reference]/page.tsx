@@ -12,7 +12,11 @@ import { naira } from '@/lib/format';
  */
 export default function MockPayPage() {
   const { reference } = useParams<{ reference: string }>();
-  const [charge, setCharge] = useState<{ amountMinor: number; status: string; order: { number: string } | null } | null>(null);
+  const [charge, setCharge] = useState<{
+    amountMinor: number;
+    status: string;
+    order: { number: string } | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -25,7 +29,10 @@ export default function MockPayPage() {
   const complete = async (outcome: 'success' | 'failed' | 'abandoned') => {
     setBusy(true);
     try {
-      const r = await api<{ redirectUrl: string }>(`/payments/mock/${encodeURIComponent(reference)}/complete`, { body: { outcome } });
+      const r = await api<{ redirectUrl: string }>(
+        `/payments/mock/${encodeURIComponent(reference)}/complete`,
+        { body: { outcome } },
+      );
       window.location.href = r.redirectUrl;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed');
@@ -37,7 +44,9 @@ export default function MockPayPage() {
   if (!charge) return <Loading />;
   return (
     <div className="card stack" style={{ maxWidth: 460, margin: '0 auto' }}>
-      <div className="test-banner">TEST MODE — simulated payment provider. No real money is charged.</div>
+      <div className="test-banner">
+        TEST MODE — simulated payment provider. No real money is charged.
+      </div>
       <h1>KDCN Test Payment</h1>
       <p>
         Order <strong>{charge.order?.number}</strong>
@@ -52,10 +61,18 @@ export default function MockPayPage() {
           <button className="btn btn-block" disabled={busy} onClick={() => complete('success')}>
             Simulate successful payment
           </button>
-          <button className="btn btn-secondary btn-block" disabled={busy} onClick={() => complete('failed')}>
+          <button
+            className="btn btn-secondary btn-block"
+            disabled={busy}
+            onClick={() => complete('failed')}
+          >
             Simulate declined payment
           </button>
-          <button className="btn btn-link btn-block" disabled={busy} onClick={() => complete('abandoned')}>
+          <button
+            className="btn btn-link btn-block"
+            disabled={busy}
+            onClick={() => complete('abandoned')}
+          >
             Cancel and return
           </button>
         </div>

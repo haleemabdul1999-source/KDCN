@@ -77,19 +77,28 @@ export class NotificationService {
       });
       if (claimed.count !== 1) continue;
       if (!adapter) {
-        await this.prisma.notification.update({ where: { id: n.id }, data: { status: NotificationStatus.SKIPPED, lastError: 'channel disabled' } });
+        await this.prisma.notification.update({
+          where: { id: n.id },
+          data: { status: NotificationStatus.SKIPPED, lastError: 'channel disabled' },
+        });
         continue;
       }
       try {
         await adapter.send({ recipient: n.recipient, subject: n.subject, body: n.body });
-        await this.prisma.notification.update({ where: { id: n.id }, data: { status: NotificationStatus.SENT, sentAt: new Date() } });
+        await this.prisma.notification.update({
+          where: { id: n.id },
+          data: { status: NotificationStatus.SENT, sentAt: new Date() },
+        });
         sent++;
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         this.logger.warn({ msg: 'notification.failed', id: n.id, error: message });
         await this.prisma.notification.update({
           where: { id: n.id },
-          data: { lastError: message.slice(0, 500), status: n.attempts + 1 >= 5 ? NotificationStatus.FAILED : NotificationStatus.PENDING },
+          data: {
+            lastError: message.slice(0, 500),
+            status: n.attempts + 1 >= 5 ? NotificationStatus.FAILED : NotificationStatus.PENDING,
+          },
         });
       }
     }

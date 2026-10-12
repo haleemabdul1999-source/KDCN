@@ -16,7 +16,9 @@ export const searchSchema = z.object({
   availability: z.enum(['any', 'in_stock', 'made_to_order', 'confirm_on_order']).default('any'),
   fulfilment: z.enum(['any', 'delivery', 'collection']).default('any'),
   verified: z.enum(['true', 'false']).optional(),
-  merchantType: z.enum(['HOME_VENDOR', 'MALL_RETAILER', 'MARKET_TRADER', 'INDEPENDENT_SHOP']).optional(),
+  merchantType: z
+    .enum(['HOME_VENDOR', 'MALL_RETAILER', 'MARKET_TRADER', 'INDEPENDENT_SHOP'])
+    .optional(),
   sort: z.enum(['relevance', 'price_asc', 'price_desc', 'newest']).default('relevance'),
   page: z.coerce.number().int().min(1).max(100).default(1),
   pageSize: z.coerce.number().int().min(1).max(48).default(24),
@@ -81,15 +83,23 @@ export class SearchService {
         SELECT 1 FROM merchant_service_areas sa WHERE sa."merchantId" = m.id AND sa."areaId" = ${input.area}))`);
     }
     if (input.city) {
-      conds.push(Prisma.sql`m."publicAreaId" IN (SELECT ar.id FROM areas ar JOIN cities ci ON ci.id = ar."cityId" WHERE ci.slug = ${input.city})`);
+      conds.push(
+        Prisma.sql`m."publicAreaId" IN (SELECT ar.id FROM areas ar JOIN cities ci ON ci.id = ar."cityId" WHERE ci.slug = ${input.city})`,
+      );
     }
     if (input.minPrice !== undefined) conds.push(Prisma.sql`price.min_price >= ${input.minPrice}`);
     if (input.maxPrice !== undefined) conds.push(Prisma.sql`price.min_price <= ${input.maxPrice}`);
-    if (input.availability === 'in_stock') conds.push(Prisma.sql`l."stockMode" = 'TRACKED' AND av.in_stock`);
-    if (input.availability === 'made_to_order') conds.push(Prisma.sql`l."stockMode" = 'MADE_TO_ORDER'`);
-    if (input.availability === 'confirm_on_order') conds.push(Prisma.sql`l."stockMode" = 'CONFIRM_ON_ORDER'`);
+    if (input.availability === 'in_stock')
+      conds.push(Prisma.sql`l."stockMode" = 'TRACKED' AND av.in_stock`);
+    if (input.availability === 'made_to_order')
+      conds.push(Prisma.sql`l."stockMode" = 'MADE_TO_ORDER'`);
+    if (input.availability === 'confirm_on_order')
+      conds.push(Prisma.sql`l."stockMode" = 'CONFIRM_ON_ORDER'`);
     if (input.fulfilment !== 'any') {
-      const methods = input.fulfilment === 'delivery' ? ['MERCHANT_DELIVERY', 'THIRD_PARTY_DELIVERY'] : ['IN_STORE_COLLECTION', 'COLLECTION_POINT'];
+      const methods =
+        input.fulfilment === 'delivery'
+          ? ['MERCHANT_DELIVERY', 'THIRD_PARTY_DELIVERY']
+          : ['IN_STORE_COLLECTION', 'COLLECTION_POINT'];
       conds.push(Prisma.sql`EXISTS (SELECT 1 FROM merchant_fulfilment_options fo WHERE fo."merchantId" = m.id AND fo.enabled
         AND fo.method::text IN (${Prisma.join(methods)}))`);
     }
@@ -125,10 +135,17 @@ export class SearchService {
 
     const offset = (input.page - 1) * input.pageSize;
     const [rows, countRows] = await Promise.all([
-      this.prisma.$queryRaw<{ id: string }[]>`SELECT l.id ${from} ORDER BY ${order} LIMIT ${input.pageSize} OFFSET ${offset}`,
+      this.prisma.$queryRaw<
+        { id: string }[]
+      >`SELECT l.id ${from} ORDER BY ${order} LIMIT ${input.pageSize} OFFSET ${offset}`,
       this.prisma.$queryRaw<{ total: bigint }[]>`SELECT count(*) AS total ${from}`,
     ]);
     const items = await this.cards.byIds(rows.map((r) => r.id));
-    return { items, total: Number(countRows[0]?.total ?? 0), page: input.page, pageSize: input.pageSize };
+    return {
+      items,
+      total: Number(countRows[0]?.total ?? 0),
+      page: input.page,
+      pageSize: input.pageSize,
+    };
   }
 }

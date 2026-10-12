@@ -1,7 +1,9 @@
 // Test environment. Uses a separate database (kdcn_test by default).
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://kdcn:kdcn@localhost:5432/kdcn_test';
-process.env.DATA_ENCRYPTION_KEY = process.env.DATA_ENCRYPTION_KEY ?? 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ?? 'postgresql://kdcn:kdcn@localhost:5432/kdcn_test';
+process.env.DATA_ENCRYPTION_KEY =
+  process.env.DATA_ENCRYPTION_KEY ?? 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
 process.env.APP_SECRET = 'test-app-secret-0123456789abcdef0123456789';
 process.env.PAYMENT_PROVIDER = 'mock';
 process.env.JOBS_ENABLED = 'false';

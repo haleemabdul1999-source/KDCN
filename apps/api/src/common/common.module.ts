@@ -8,7 +8,21 @@ import { NotificationService } from '../modules/notifications/notification.servi
 
 @Global()
 @Module({
-  providers: [PrismaService, SessionService, AuditService, AccessService, StorageService, NotificationService],
-  exports: [PrismaService, SessionService, AuditService, AccessService, StorageService, NotificationService],
+  providers: [
+    PrismaService,
+    SessionService,
+    AuditService,
+    AccessService,
+    StorageService,
+    NotificationService,
+  ],
+  exports: [
+    PrismaService,
+    SessionService,
+    AuditService,
+    AccessService,
+    StorageService,
+    NotificationService,
+  ],
 })
 export class CommonModule {}

@@ -29,18 +29,31 @@ export const PUBLIC_MERCHANT_SELECT = {
   },
   affiliations: {
     where: { status: 'APPROVED' as const },
-    select: { unitLabel: true, market: { select: { id: true, slug: true, name: true, kind: true } } },
+    select: {
+      unitLabel: true,
+      market: { select: { id: true, slug: true, name: true, kind: true } },
+    },
   },
   locations: {
     where: { kind: 'PUBLIC_STORE' as const },
-    select: { id: true, label: true, publicAddress: true, unitLabel: true, area: { select: { name: true } } },
+    select: {
+      id: true,
+      label: true,
+      publicAddress: true,
+      unitLabel: true,
+      area: { select: { name: true } },
+    },
   },
 } satisfies Prisma.MerchantSelect;
 
-export type PublicMerchantRow = Prisma.MerchantGetPayload<{ select: typeof PUBLIC_MERCHANT_SELECT }>;
+export type PublicMerchantRow = Prisma.MerchantGetPayload<{
+  select: typeof PUBLIC_MERCHANT_SELECT;
+}>;
 
 /** Public merchant visibility rule. */
-export const VISIBLE_MERCHANT_WHERE = { status: MerchantStatus.APPROVED } satisfies Prisma.MerchantWhereInput;
+export const VISIBLE_MERCHANT_WHERE = {
+  status: MerchantStatus.APPROVED,
+} satisfies Prisma.MerchantWhereInput;
 
 export function serializePublicMerchant(m: PublicMerchantRow) {
   const v = m.verifications[0];
@@ -66,7 +79,12 @@ export function serializePublicMerchant(m: PublicMerchantRow) {
      * never as a guarantee of product quality.
      */
     verification: verificationValid
-      ? { status: 'IDENTITY_VERIFIED' as const, pathway: v.pathway, verifiedAt: v.decidedAt, expiresAt: v.expiresAt }
+      ? {
+          status: 'IDENTITY_VERIFIED' as const,
+          pathway: v.pathway,
+          verifiedAt: v.decidedAt,
+          expiresAt: v.expiresAt,
+        }
       : { status: 'NOT_VERIFIED' as const },
     markets: m.affiliations.map((a) => ({ ...a.market, unitLabel: a.unitLabel })),
     publicLocations: m.locations.map((l) => ({

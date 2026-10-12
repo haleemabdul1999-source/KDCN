@@ -10,11 +10,23 @@ type Metrics = Record<string, number | boolean | string[] | null>;
 interface Analytics {
   period: { from: string; to: string };
   segments: Record<string, Metrics>;
-  merchants: { bySegment: Record<string, { registered: number; submitted: number; approved: number; suspended: number }>; registeredCustomers: number };
+  merchants: {
+    bySegment: Record<
+      string,
+      { registered: number; submitted: number; approved: number; suspended: number }
+    >;
+    registeredCustomers: number;
+  };
 }
 
 const SEGMENTS = ['ALL', 'GALAXY_MALL', 'HOME_VENDOR', 'INDEPENDENT', 'OTHER_MARKET'];
-const SEG_LABEL: Record<string, string> = { ALL: 'All', GALAXY_MALL: 'Galaxy Mall', HOME_VENDOR: 'Home vendors', INDEPENDENT: 'Independent', OTHER_MARKET: 'Other markets' };
+const SEG_LABEL: Record<string, string> = {
+  ALL: 'All',
+  GALAXY_MALL: 'Galaxy Mall',
+  HOME_VENDOR: 'Home vendors',
+  INDEPENDENT: 'Independent',
+  OTHER_MARKET: 'Other markets',
+};
 const ROWS: [string, string, 'n' | 'm' | 'p'][] = [
   ['ordersInitiated', 'Orders initiated', 'n'],
   ['paidOrders', 'Paid orders', 'n'],
@@ -44,7 +56,18 @@ export default function AdminOverview() {
   const overview = useApi<{ queues: Record<string, number> }>('/admin/overview');
   const analytics = useApi<Analytics>(`/admin/analytics?from=${encodeURIComponent(from)}`);
   const q = overview.data?.queues;
-  const fmt = (v: unknown, t: 'n' | 'm' | 'p') => (v == null ? '—' : t === 'm' ? naira(v as number) : t === 'p' ? pct(v as number) : typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : String(v));
+  const fmt = (v: unknown, t: 'n' | 'm' | 'p') =>
+    v == null
+      ? '—'
+      : t === 'm'
+        ? naira(v as number)
+        : t === 'p'
+          ? pct(v as number)
+          : typeof v === 'number'
+            ? Number.isInteger(v)
+              ? v
+              : v.toFixed(1)
+            : String(v);
   return (
     <div className="stack">
       {q && (
@@ -53,7 +76,10 @@ export default function AdminOverview() {
             <Stat label="Merchants to review" value={q.pendingMerchants} />
           </Link>
           <Link href="/admin/moderation">
-            <Stat label="Products / affiliations / reports" value={`${q.pendingProducts} / ${q.pendingAffiliations} / ${q.openReports}`} />
+            <Stat
+              label="Products / affiliations / reports"
+              value={`${q.pendingProducts} / ${q.pendingAffiliations} / ${q.openReports}`}
+            />
           </Link>
           <Link href="/admin/disputes">
             <Stat label="Open disputes" value={q.openDisputes} />
@@ -62,7 +88,11 @@ export default function AdminOverview() {
             <Stat label="Courier deliveries to arrange" value={q.awaitingDispatch} />
           </Link>
           <Link href="/admin/finance">
-            <Stat label="Refunds awaiting approval" value={q.refundsAwaiting} note={q.failedRefunds ? `${q.failedRefunds} failed — action needed` : undefined} />
+            <Stat
+              label="Refunds awaiting approval"
+              value={q.refundsAwaiting}
+              note={q.failedRefunds ? `${q.failedRefunds} failed — action needed` : undefined}
+            />
           </Link>
           <Link href="/admin/finance">
             <Stat label="Unprocessed webhooks" value={q.unprocessedWebhooks} />
@@ -72,7 +102,12 @@ export default function AdminOverview() {
       <section className="card stack-sm">
         <div className="row-between">
           <h2 className="mb-0">Performance by segment</h2>
-          <select aria-label="Period" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ maxWidth: 180 }}>
+          <select
+            aria-label="Period"
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            style={{ maxWidth: 180 }}
+          >
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
@@ -85,7 +120,8 @@ export default function AdminOverview() {
           <>
             {analytics.data.segments.ALL.contributionMarginComplete === false && (
               <Alert tone="warn" title="Contribution margin is incomplete">
-                {(analytics.data.segments.ALL.contributionMarginNotes as string[]).join('; ')}. Unknown costs are not assumed to be zero.
+                {(analytics.data.segments.ALL.contributionMarginNotes as string[]).join('; ')}.
+                Unknown costs are not assumed to be zero.
               </Alert>
             )}
             <div className="table-wrap">
@@ -107,7 +143,10 @@ export default function AdminOverview() {
                       {SEGMENTS.map((s) => (
                         <td key={s} className="num">
                           {fmt(analytics.data!.segments[s]?.[k], t)}
-                          {k === 'contributionMarginMinor' && analytics.data!.segments[s]?.contributionMarginComplete === false && <span title="Incomplete cost data"> *</span>}
+                          {k === 'contributionMarginMinor' &&
+                            analytics.data!.segments[s]?.contributionMarginComplete === false && (
+                              <span title="Incomplete cost data"> *</span>
+                            )}
                         </td>
                       ))}
                     </tr>
@@ -116,7 +155,8 @@ export default function AdminOverview() {
                     <td>Merchants approved / registered</td>
                     {SEGMENTS.map((s) => (
                       <td key={s} className="num">
-                        {analytics.data!.merchants.bySegment[s]?.approved ?? 0} / {analytics.data!.merchants.bySegment[s]?.registered ?? 0}
+                        {analytics.data!.merchants.bySegment[s]?.approved ?? 0} /{' '}
+                        {analytics.data!.merchants.bySegment[s]?.registered ?? 0}
                       </td>
                     ))}
                   </tr>
@@ -124,7 +164,13 @@ export default function AdminOverview() {
               </table>
             </div>
             <p className="meta mb-0">
-              Platform-wide: {analytics.data.merchants.registeredCustomers} registered customers · {analytics.data.segments.ALL.searches as number} searches · {pct(analytics.data.segments.ALL.searchToProductRate as number | null)} search → product · {analytics.data.segments.ALL.productViews as number} product views. GMV is the value of goods in paid orders; revenue is KDCN&apos;s commission and service fees; contribution margin subtracts payment and logistics costs. Definitions: docs/ANALYTICS.md.
+              Platform-wide: {analytics.data.merchants.registeredCustomers} registered customers ·{' '}
+              {analytics.data.segments.ALL.searches as number} searches ·{' '}
+              {pct(analytics.data.segments.ALL.searchToProductRate as number | null)} search →
+              product · {analytics.data.segments.ALL.productViews as number} product views. GMV is
+              the value of goods in paid orders; revenue is KDCN&apos;s commission and service fees;
+              contribution margin subtracts payment and logistics costs. Definitions:
+              docs/ANALYTICS.md.
             </p>
           </>
         )}

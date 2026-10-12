@@ -6,7 +6,16 @@ import type { ListingCard, PublicMerchant } from '@/lib/types';
 export const dynamic = 'force-dynamic'; // data is still cached per-fetch (serverGet revalidate)
 
 interface Home {
-  markets: { id: string; slug: string; name: string; kind: string; tagline: string; branded: boolean; merchantCount: number; area: { name: string } | null }[];
+  markets: {
+    id: string;
+    slug: string;
+    name: string;
+    kind: string;
+    tagline: string;
+    branded: boolean;
+    merchantCount: number;
+    area: { name: string } | null;
+  }[];
   featuredMerchants: PublicMerchant[];
   recentListings: ListingCard[];
   homeVendorListings: ListingCard[];
@@ -20,14 +29,20 @@ interface City {
 }
 
 export default async function HomePage() {
-  const [home, cities] = await Promise.all([serverGet<Home>('/home'), serverGet<City[]>('/geo/cities', 3600)]);
+  const [home, cities] = await Promise.all([
+    serverGet<Home>('/home'),
+    serverGet<City[]>('/geo/cities', 3600),
+  ]);
   if (!home) return null;
   const areas = cities?.flatMap((c) => c.areas.map((a) => ({ ...a, city: c.name }))) ?? [];
   return (
     <div>
       <section className="hero">
         <h1>Shop Kaduna&apos;s stores, markets and home businesses — in one place</h1>
-        <p>Find products from Galaxy Mall shops, market traders, independent stores and verified home-based vendors. Collect in store, at a pickup point, or get it delivered.</p>
+        <p>
+          Find products from Galaxy Mall shops, market traders, independent stores and verified
+          home-based vendors. Collect in store, at a pickup point, or get it delivered.
+        </p>
         <form action="/search" className="hero-search" role="search">
           <label htmlFor="hero-q" className="sr-only">
             What are you looking for?
@@ -57,9 +72,11 @@ export default async function HomePage() {
           <Link key={m.id} href={`/markets/${m.slug}`} className="market-card">
             <div className="cover" />
             <div className="body">
-              <strong>{m.name}</strong> {m.branded && <span className="badge badge-amber">Featured</span>}
+              <strong>{m.name}</strong>{' '}
+              {m.branded && <span className="badge badge-amber">Featured</span>}
               <div className="meta">
-                {m.tagline || m.kind.replace('_', ' ').toLowerCase()} · {m.merchantCount} store{m.merchantCount === 1 ? '' : 's'}
+                {m.tagline || m.kind.replace('_', ' ').toLowerCase()} · {m.merchantCount} store
+                {m.merchantCount === 1 ? '' : 's'}
               </div>
             </div>
           </Link>
@@ -99,7 +116,10 @@ export default async function HomePage() {
         <h2>From home-based vendors</h2>
         <Link href="/search?merchantType=HOME_VENDOR">See all</Link>
       </div>
-      <p className="muted small">Made-to-order food, fashion and crafts from Kaduna homes. Home vendors&apos; addresses are never shown — orders are delivered or collected from neutral pickup points.</p>
+      <p className="muted small">
+        Made-to-order food, fashion and crafts from Kaduna homes. Home vendors&apos; addresses are
+        never shown — orders are delivered or collected from neutral pickup points.
+      </p>
       <ProductGrid items={home.homeVendorListings} empty="No home-vendor products yet." />
 
       <div className="section-title">

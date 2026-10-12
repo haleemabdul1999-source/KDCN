@@ -1,4 +1,3 @@
-
 const API = process.env.API_INTERNAL_URL ?? 'http://localhost:4000';
 
 /** Server-side fetch for public data (no user cookies are forwarded). */

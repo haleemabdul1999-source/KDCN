@@ -29,6 +29,11 @@ export class LogAdapter implements ChannelAdapter {
   private readonly logger = new Logger('Notifications');
   constructor(readonly name: string) {}
   async send(msg: OutboundMessage): Promise<void> {
-    this.logger.log({ msg: 'notification.sent (log driver — not delivered)', channel: this.name, to: maskRecipient(msg.recipient), subject: msg.subject });
+    this.logger.log({
+      msg: 'notification.sent (log driver — not delivered)',
+      channel: this.name,
+      to: maskRecipient(msg.recipient),
+      subject: msg.subject,
+    });
   }
 }

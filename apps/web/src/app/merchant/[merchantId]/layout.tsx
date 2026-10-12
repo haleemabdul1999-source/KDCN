@@ -54,26 +54,48 @@ export default function MerchantLayout({ children }: { children: ReactNode }) {
         <div>
           <h1 style={{ marginBottom: 2 }}>{m.displayName}</h1>
           <div className="meta">
-            {MERCHANT_TYPE_LABEL[m.type]} · <StatusBadge status={m.status} /> {m.status === 'APPROVED' && <Link href={`/s/${m.slug}`}>View storefront</Link>}
+            {MERCHANT_TYPE_LABEL[m.type]} · <StatusBadge status={m.status} />{' '}
+            {m.status === 'APPROVED' && <Link href={`/s/${m.slug}`}>View storefront</Link>}
           </div>
         </div>
       </div>
       {m.status === 'DRAFT' && (
         <Alert tone="info" title="Finish setting up your store">
-          Complete the verification checklist to submit your store for review. You can add products now — they go live once you&apos;re approved. <Link href={`${base}/onboarding`}>Continue setup →</Link>
+          Complete the verification checklist to submit your store for review. You can add products
+          now — they go live once you&apos;re approved.{' '}
+          <Link href={`${base}/onboarding`}>Continue setup →</Link>
         </Alert>
       )}
-      {m.status === 'PENDING_REVIEW' && <Alert tone="info">Your application is being reviewed by KDCN. We&apos;ll notify you by email.</Alert>}
+      {m.status === 'PENDING_REVIEW' && (
+        <Alert tone="info">
+          Your application is being reviewed by KDCN. We&apos;ll notify you by email.
+        </Alert>
+      )}
       {m.status === 'INFO_REQUESTED' && (
         <Alert tone="warn" title="KDCN needs more information">
-          {m.verification?.requestNote} <Link href={`${base}/onboarding`}>Update your application →</Link>
+          {m.verification?.requestNote}{' '}
+          <Link href={`${base}/onboarding`}>Update your application →</Link>
         </Alert>
       )}
-      {m.status === 'REJECTED' && <Alert tone="error">Your application was not approved: {m.verification?.decisionNotes}</Alert>}
-      {m.status === 'SUSPENDED' && <Alert tone="error">Your store is suspended: {m.suspensionReason}. Contact KDCN support.</Alert>}
+      {m.status === 'REJECTED' && (
+        <Alert tone="error">
+          Your application was not approved: {m.verification?.decisionNotes}
+        </Alert>
+      )}
+      {m.status === 'SUSPENDED' && (
+        <Alert tone="error">
+          Your store is suspended: {m.suspensionReason}. Contact KDCN support.
+        </Alert>
+      )}
       <nav className="dash-nav" aria-label="Store management" style={{ marginTop: 12 }}>
         {tabs.map(([label, href]) => (
-          <Link key={href} href={href} aria-current={(href === base ? path === base : path.startsWith(href)) ? 'page' : undefined}>
+          <Link
+            key={href}
+            href={href}
+            aria-current={
+              (href === base ? path === base : path.startsWith(href)) ? 'page' : undefined
+            }
+          >
             {label}
           </Link>
         ))}

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { AnalyticsEventType, MerchantRole } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -46,9 +56,19 @@ export class AnalyticsController {
     );
     let merchantId: string | undefined;
     if (input.listingId) {
-      merchantId = (await this.prisma.listing.findUnique({ where: { id: input.listingId }, select: { merchantId: true } }))?.merchantId;
+      merchantId = (
+        await this.prisma.listing.findUnique({
+          where: { id: input.listingId },
+          select: { merchantId: true },
+        })
+      )?.merchantId;
     } else if (input.merchantSlug) {
-      merchantId = (await this.prisma.merchant.findUnique({ where: { slug: input.merchantSlug }, select: { id: true } }))?.id;
+      merchantId = (
+        await this.prisma.merchant.findUnique({
+          where: { slug: input.merchantSlug },
+          select: { id: true },
+        })
+      )?.id;
     }
     await this.analytics.track({
       type: input.type,
@@ -63,12 +83,18 @@ export class AnalyticsController {
 
   /** Merchant's own dashboard metrics. */
   @Get('merchant/:merchantId/analytics')
-  async merchant(@Auth() auth: AuthContext, @Param('merchantId', ParseUUIDPipe) merchantId: string, @Query() query: unknown) {
+  async merchant(
+    @Auth() auth: AuthContext,
+    @Param('merchantId', ParseUUIDPipe) merchantId: string,
+    @Query() query: unknown,
+  ) {
     await this.access.requireMerchant(auth, merchantId, MerchantRole.MANAGER);
     const { from, to } = resolvePeriod(parse(periodSchema, query));
     const m = await this.analytics.platformMetrics(from, to, merchantId);
     const all = (m.segments as Record<string, Record<string, unknown>>).ALL;
-    const storefrontViews = await this.prisma.analyticsEvent.count({ where: { merchantId, type: 'STOREFRONT_VIEW', createdAt: { gte: from, lt: to } } });
+    const storefrontViews = await this.prisma.analyticsEvent.count({
+      where: { merchantId, type: 'STOREFRONT_VIEW', createdAt: { gte: from, lt: to } },
+    });
     const topListings = await this.prisma.orderItem.groupBy({
       by: ['listingId', 'productTitle'],
       where: { order: { merchantId, paidAt: { gte: from, lt: to } } },
@@ -90,7 +116,12 @@ export class AnalyticsController {
       checkoutConversion: all.checkoutConversion,
       avgHoursPaidToDelivered: all.avgHoursPaidToDelivered,
       disputesOpened: all.disputesOpened,
-      topListings: topListings.map((t) => ({ listingId: t.listingId, title: t.productTitle, quantity: t._sum.quantity ?? 0, salesMinor: t._sum.lineTotalMinor ?? 0 })),
+      topListings: topListings.map((t) => ({
+        listingId: t.listingId,
+        title: t.productTitle,
+        quantity: t._sum.quantity ?? 0,
+        salesMinor: t._sum.lineTotalMinor ?? 0,
+      })),
     };
   }
 }

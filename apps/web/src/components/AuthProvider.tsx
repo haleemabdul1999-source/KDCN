@@ -12,7 +12,13 @@ interface AuthState {
   refreshCart: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthState>({ me: null, loading: true, refresh: async () => undefined, cartCount: 0, refreshCart: async () => undefined });
+const Ctx = createContext<AuthState>({
+  me: null,
+  loading: true,
+  refresh: async () => undefined,
+  cartCount: 0,
+  refreshCart: async () => undefined,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
@@ -44,7 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshCart();
   }, [refresh, refreshCart]);
 
-  return <Ctx.Provider value={{ me, loading, refresh, cartCount, refreshCart }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ me, loading, refresh, cartCount, refreshCart }}>{children}</Ctx.Provider>
+  );
 }
 
 export const useAuth = () => useContext(Ctx);

@@ -15,7 +15,8 @@ function RegisterForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [k]: e.target.value });
 
   return (
     <form
@@ -50,26 +51,52 @@ function RegisterForm() {
       </div>
       <div className="field">
         <label htmlFor="email">Email</label>
-        <input id="email" type="email" required autoComplete="email" value={form.email} onChange={set('email')} />
+        <input
+          id="email"
+          type="email"
+          required
+          autoComplete="email"
+          value={form.email}
+          onChange={set('email')}
+        />
         {errors.email && <div className="error">{errors.email}</div>}
       </div>
       <div className="field">
         <label htmlFor="phone">Phone (for delivery updates)</label>
-        <input id="phone" type="tel" autoComplete="tel" placeholder="080..." value={form.phone} onChange={set('phone')} />
+        <input
+          id="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="080..."
+          value={form.phone}
+          onChange={set('phone')}
+        />
         {errors.phone && <div className="error">{errors.phone}</div>}
       </div>
       <div className="field">
         <label htmlFor="password">Password</label>
-        <input id="password" type="password" required autoComplete="new-password" minLength={10} value={form.password} onChange={set('password')} />
+        <input
+          id="password"
+          type="password"
+          required
+          autoComplete="new-password"
+          minLength={10}
+          value={form.password}
+          onChange={set('password')}
+        />
         <div className="hint">At least 10 characters, with letters and numbers.</div>
         {errors.password && <div className="error">{errors.password}</div>}
       </div>
-      <p className="small muted">We only collect what we need to process your orders. See our privacy notice for how your data is used.</p>
+      <p className="small muted">
+        We only collect what we need to process your orders. See our privacy notice for how your
+        data is used.
+      </p>
       <button className="btn btn-block" disabled={pending}>
         {pending ? 'Creating account…' : 'Create account'}
       </button>
       <p className="small" style={{ marginTop: 16 }}>
-        Already have an account? <Link href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
+        Already have an account?{' '}
+        <Link href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
       </p>
     </form>
   );

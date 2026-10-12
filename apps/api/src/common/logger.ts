@@ -9,7 +9,12 @@ export class JsonLogger implements LoggerService {
 
   private static order = { debug: 10, info: 20, warn: 30, error: 40 } as const;
 
-  private write(level: keyof typeof JsonLogger.order, message: unknown, context?: string, extra?: unknown) {
+  private write(
+    level: keyof typeof JsonLogger.order,
+    message: unknown,
+    context?: string,
+    extra?: unknown,
+  ) {
     if (JsonLogger.order[level] < JsonLogger.order[this.minLevel]) return;
     const entry: Record<string, unknown> = {
       ts: new Date().toISOString(),

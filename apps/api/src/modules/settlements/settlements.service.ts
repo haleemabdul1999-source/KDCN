@@ -15,8 +15,14 @@ import { Tx } from '../../common/prisma.service';
  */
 @Injectable()
 export class SettlementsService {
-  async createForPaidOrder(tx: Tx, order: Order, mode: SettlementMode, providerFeeMinor: number | null) {
-    const merchantDelivery = order.fulfilmentMethod === FulfilmentMethod.MERCHANT_DELIVERY ? order.deliveryFeeMinor : 0;
+  async createForPaidOrder(
+    tx: Tx,
+    order: Order,
+    mode: SettlementMode,
+    providerFeeMinor: number | null,
+  ) {
+    const merchantDelivery =
+      order.fulfilmentMethod === FulfilmentMethod.MERCHANT_DELIVERY ? order.deliveryFeeMinor : 0;
     await tx.settlementAllocation.upsert({
       where: { orderId: order.id },
       update: {},
@@ -38,14 +44,20 @@ export class SettlementsService {
 
   async markEligible(tx: Tx, orderId: string) {
     await tx.settlementAllocation.updateMany({
-      where: { orderId, status: { in: [SettlementStatus.PENDING_FULFILMENT, SettlementStatus.ON_HOLD] } },
+      where: {
+        orderId,
+        status: { in: [SettlementStatus.PENDING_FULFILMENT, SettlementStatus.ON_HOLD] },
+      },
       data: { status: SettlementStatus.ELIGIBLE },
     });
   }
 
   async hold(tx: Tx, orderId: string) {
     await tx.settlementAllocation.updateMany({
-      where: { orderId, status: { in: [SettlementStatus.PENDING_FULFILMENT, SettlementStatus.ELIGIBLE] } },
+      where: {
+        orderId,
+        status: { in: [SettlementStatus.PENDING_FULFILMENT, SettlementStatus.ELIGIBLE] },
+      },
       data: { status: SettlementStatus.ON_HOLD },
     });
   }
@@ -58,7 +70,12 @@ export class SettlementsService {
   }
 
   /** Apply a successful refund. Full refunds reverse the allocation. */
-  async applyRefund(tx: Tx, order: Pick<Order, 'id' | 'totalMinor'>, amountMinor: number, totalRefundedMinor: number) {
+  async applyRefund(
+    tx: Tx,
+    order: Pick<Order, 'id' | 'totalMinor'>,
+    amountMinor: number,
+    totalRefundedMinor: number,
+  ) {
     const s = await tx.settlementAllocation.findUnique({ where: { orderId: order.id } });
     if (!s) return;
     const full = totalRefundedMinor >= order.totalMinor;
@@ -68,7 +85,8 @@ export class SettlementsService {
         refundedMinor: totalRefundedMinor,
         merchantNetMinor: full ? 0 : Math.max(0, s.merchantNetMinor - amountMinor),
         // A refund after payout keeps SETTLED; finance sees refundedMinor > 0 and recovers it from the merchant.
-        status: full && s.status !== SettlementStatus.SETTLED ? SettlementStatus.REVERSED : s.status,
+        status:
+          full && s.status !== SettlementStatus.SETTLED ? SettlementStatus.REVERSED : s.status,
       },
     });
   }

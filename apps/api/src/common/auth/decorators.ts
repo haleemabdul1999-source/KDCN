@@ -22,9 +22,11 @@ export const SkipCsrf = () => SetMetadata(SKIP_CSRF, true);
 /** Staff endpoints needed to complete MFA enrolment/verification. */
 export const AllowUnverifiedMfa = () => SetMetadata(ALLOW_UNVERIFIED_MFA, true);
 
-export const CurrentAuth = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthContext | undefined => {
-  return ctx.switchToHttp().getRequest<KdcnRequest>().auth;
-});
+export const CurrentAuth = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): AuthContext | undefined => {
+    return ctx.switchToHttp().getRequest<KdcnRequest>().auth;
+  },
+);
 
 /** Like CurrentAuth but guaranteed non-null (use on non-public routes). */
 export const Auth = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthContext => {
@@ -33,6 +35,8 @@ export const Auth = createParamDecorator((_: unknown, ctx: ExecutionContext): Au
   return auth;
 });
 
-export const ClientIp = createParamDecorator((_: unknown, ctx: ExecutionContext): string | undefined => {
-  return ctx.switchToHttp().getRequest<KdcnRequest>().ip;
-});
+export const ClientIp = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): string | undefined => {
+    return ctx.switchToHttp().getRequest<KdcnRequest>().ip;
+  },
+);

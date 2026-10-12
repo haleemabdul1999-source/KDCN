@@ -1,0 +1,41 @@
+# Local full-stack environment (development/staging rehearsal — not a production deployment).
+#   docker compose up --build
+#   docker compose run --rm api npx prisma migrate deploy
+#   docker compose run --rm -e SEED_DEMO=true api node dist/seed/seed.js
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kdcn
+      POSTGRES_PASSWORD: kdcn
+      POSTGRES_DB: kdcn
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kdcn']
+      interval: 5s
+      retries: 10
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://kdcn:kdcn@db:5432/kdcn
+      WEB_BASE_URL: http://localhost:3000
+      API_BASE_URL: http://localhost:3000
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      APP_SECRET: ${APP_SECRET:-dev-only-app-secret-change-me-0123456789abcdef}
+      PAYMENT_PROVIDER: mock
+      TRUST_PROXY: 'true'
+      SEED_ADMIN_EMAIL: admin@demo.kdcn.ng
+      SEED_ADMIN_PASSWORD: AdminPassword123!
+      SEED_ADMIN_TOTP_SECRET: JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP
+    volumes: [storage:/data/storage]
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    depends_on: [api]
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    ports: ['3000:3000']
+volumes:
+  db:
+  storage:

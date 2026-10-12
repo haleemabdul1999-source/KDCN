@@ -35,12 +35,29 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     verification: MerchantVerificationService,
   ) {
     this.jobs = [
-      { name: 'notifications.dispatch', everyMs: 15_000, run: () => notifications.dispatchPending() },
-      { name: 'orders.expire_confirmations', everyMs: 60_000, run: () => orders.expireConfirmations() },
-      { name: 'orders.expire_payments', everyMs: 60_000, run: () => orders.expirePayments((ref) => payments.verifyAndApply(ref, 'expiry_job')) },
+      {
+        name: 'notifications.dispatch',
+        everyMs: 15_000,
+        run: () => notifications.dispatchPending(),
+      },
+      {
+        name: 'orders.expire_confirmations',
+        everyMs: 60_000,
+        run: () => orders.expireConfirmations(),
+      },
+      {
+        name: 'orders.expire_payments',
+        everyMs: 60_000,
+        run: () => orders.expirePayments((ref) => payments.verifyAndApply(ref, 'expiry_job')),
+      },
       { name: 'orders.auto_complete', everyMs: 10 * 60_000, run: () => orders.autoComplete() },
       { name: 'refunds.process', everyMs: 60_000, run: () => refunds.processDue() },
-      { name: 'merchants.expire_verifications', everyMs: 60 * 60_000, run: () => verification.expireVerifications() },
+      {
+        name: 'merchants.expire_verifications',
+        everyMs: 60 * 60_000,
+        run: () => verification.expireVerifications(),
+      },
+      { name: 'retention.cleanup', everyMs: 24 * 60 * 60_000, run: () => this.retentionCleanup() },
     ];
   }
 
@@ -74,11 +91,40 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       this.logger.error({ msg: 'job.failed', job: name, error: (e as Error).message });
       return null;
     } finally {
-      await this.prisma.jobLease.updateMany({ where: { name, owner: this.owner }, data: { lockedUntil: new Date(0) } });
+      await this.prisma.jobLease.updateMany({
+        where: { name, owner: this.owner },
+        data: { lockedUntil: new Date(0) },
+      });
     }
   }
 
+  /**
+   * Data-retention housekeeping (see docs/SECURITY.md). Business/financial records (orders,
+   * payments, refunds, settlements, audit events) are NOT deleted here — their retention is a
+   * legal decision.
+   */
+  async retentionCleanup(): Promise<number> {
+    const days = (n: number) => new Date(Date.now() - n * 86400_000);
+    const results = await Promise.all([
+      this.prisma.session.deleteMany({
+        where: { OR: [{ expiresAt: { lt: days(30) } }, { revokedAt: { lt: days(30) } }] },
+      }),
+      this.prisma.passwordResetToken.deleteMany({ where: { createdAt: { lt: days(7) } } }),
+      this.prisma.analyticsEvent.deleteMany({ where: { createdAt: { lt: days(400) } } }),
+      this.prisma.notification.deleteMany({
+        where: { createdAt: { lt: days(365) }, status: { in: ['SENT', 'SKIPPED', 'FAILED'] } },
+      }),
+      this.prisma.cart.deleteMany({ where: { userId: null, updatedAt: { lt: days(60) } } }),
+      this.prisma.mockProviderCharge.deleteMany({ where: { createdAt: { lt: days(30) } } }),
+    ]);
+    return results.reduce((n, r) => n + r.count, 0);
+  }
+
   status() {
-    return this.jobs.map((j) => ({ name: j.name, everyMs: j.everyMs, lastRun: this.lastRun.get(j.name) ?? null }));
+    return this.jobs.map((j) => ({
+      name: j.name,
+      everyMs: j.everyMs,
+      lastRun: this.lastRun.get(j.name) ?? null,
+    }));
   }
 }

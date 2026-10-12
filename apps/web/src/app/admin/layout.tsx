@@ -30,7 +30,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   if (!me.mfaVerified)
     return (
       <Alert tone="warn">
-        Two-step verification is required for staff. <Link href="/login?next=/admin">Sign in again</Link> to verify.
+        Two-step verification is required for staff.{' '}
+        <Link href="/login?next=/admin">Sign in again</Link> to verify.
       </Alert>
     );
   return (
@@ -41,7 +42,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </div>
       <nav className="dash-nav" aria-label="Admin" style={{ marginTop: 12 }}>
         {TABS.map(([l, h]) => (
-          <Link key={h} href={h} aria-current={(h === '/admin' ? path === h : path.startsWith(h)) ? 'page' : undefined}>
+          <Link
+            key={h}
+            href={h}
+            aria-current={(h === '/admin' ? path === h : path.startsWith(h)) ? 'page' : undefined}
+          >
             {l}
           </Link>
         ))}

@@ -14,7 +14,11 @@ export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Throws 404 (not 403) when the user is not a member, to avoid revealing merchant IDs. */
-  async requireMerchant(auth: AuthContext, merchantId: string, minRole: MerchantRole = MerchantRole.STAFF) {
+  async requireMerchant(
+    auth: AuthContext,
+    merchantId: string,
+    minRole: MerchantRole = MerchantRole.STAFF,
+  ) {
     const member = await this.prisma.merchantMember.findUnique({
       where: { merchantId_userId: { merchantId, userId: auth.user.id } },
       include: { merchant: true },

@@ -16,7 +16,14 @@ export interface ListingCard {
   compareAtMinor: number | null;
   stockMode: string;
   availability: Availability;
-  merchant: { slug: string; displayName: string; type: string; areaLabel: string | null; identityVerified: boolean; markets: { slug: string; name: string }[] };
+  merchant: {
+    slug: string;
+    displayName: string;
+    type: string;
+    areaLabel: string | null;
+    identityVerified: boolean;
+    markets: { slug: string; name: string }[];
+  };
   fulfilment: { delivery: boolean; collection: boolean };
 }
 
@@ -34,9 +41,17 @@ export interface PublicMerchant {
   returnPolicy: string;
   cancellationPolicy: string;
   memberSince: string | null;
-  verification: { status: 'IDENTITY_VERIFIED'; pathway: string; verifiedAt: string; expiresAt: string | null } | { status: 'NOT_VERIFIED' };
+  verification:
+    | { status: 'IDENTITY_VERIFIED'; pathway: string; verifiedAt: string; expiresAt: string | null }
+    | { status: 'NOT_VERIFIED' };
   markets: { id: string; slug: string; name: string; kind: string; unitLabel: string | null }[];
-  publicLocations: { id: string; label: string; address: string | null; unitLabel: string | null; area: string }[];
+  publicLocations: {
+    id: string;
+    label: string;
+    address: string | null;
+    unitLabel: string | null;
+    area: string;
+  }[];
 }
 
 export interface Paged<T> {
@@ -53,6 +68,13 @@ export interface Me {
   staffRoles: string[];
   mfaEnabled: boolean;
   mfaVerified: boolean;
-  merchants: { id: string; slug: string; displayName: string; status: string; type: string; role: string }[];
+  merchants: {
+    id: string;
+    slug: string;
+    displayName: string;
+    status: string;
+    type: string;
+    role: string;
+  }[];
   markets: { id: string; slug: string; name: string; role: string }[];
 }

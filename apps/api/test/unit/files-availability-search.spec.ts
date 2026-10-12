@@ -1,6 +1,10 @@
 import { StockMode } from '@prisma/client';
 import { availabilityFor } from '../../src/modules/catalog/availability';
-import { sniffMime, stripJpegMetadata, stripPngMetadata } from '../../src/modules/storage/file-inspection';
+import {
+  sniffMime,
+  stripJpegMetadata,
+  stripPngMetadata,
+} from '../../src/modules/storage/file-inspection';
 import { toPrefixQuery } from '../../src/modules/search/search.service';
 import { segmentFor } from '../../src/modules/merchants/merchant-public';
 import { jpegWithExif, PNG_1PX } from '../helpers';
@@ -24,7 +28,12 @@ describe('upload inspection', () => {
   });
 
   it('removes text/EXIF chunks from PNGs', () => {
-    const textChunk = Buffer.concat([Buffer.from([0, 0, 0, 8]), Buffer.from('tEXt'), Buffer.from('GPS=1,2\0'), Buffer.alloc(4)]);
+    const textChunk = Buffer.concat([
+      Buffer.from([0, 0, 0, 8]),
+      Buffer.from('tEXt'),
+      Buffer.from('GPS=1,2\0'),
+      Buffer.alloc(4),
+    ]);
     const png = Buffer.concat([PNG_1PX.subarray(0, 33), textChunk, PNG_1PX.subarray(33)]);
     const out = stripPngMetadata(png);
     expect(out.toString('latin1')).not.toContain('GPS=');
@@ -36,9 +45,16 @@ describe('availability messaging', () => {
   it('never promises stock for unconfirmed listings', () => {
     expect(availabilityFor(StockMode.CONFIRM_ON_ORDER, 0, null).code).toBe('CONFIRM_ON_ORDER');
     expect(availabilityFor(StockMode.MADE_TO_ORDER, 2, null).label).toMatch(/2 days/);
-    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 3, reserved: 3 }).purchasable).toBe(false);
-    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 6, reserved: 2 })).toMatchObject({ code: 'LOW_STOCK', quantityHint: 4 });
-    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 60, reserved: 0 }).code).toBe('IN_STOCK');
+    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 3, reserved: 3 }).purchasable).toBe(
+      false,
+    );
+    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 6, reserved: 2 })).toMatchObject({
+      code: 'LOW_STOCK',
+      quantityHint: 4,
+    });
+    expect(availabilityFor(StockMode.TRACKED, 0, { quantity: 60, reserved: 0 }).code).toBe(
+      'IN_STOCK',
+    );
   });
 });
 

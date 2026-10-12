@@ -11,7 +11,13 @@ export const VISIBLE_LISTING_WHERE = {
 } satisfies Prisma.ListingWhereInput;
 
 const CARD_INCLUDE = {
-  product: { select: { title: true, category: { select: { slug: true, name: true } }, images: { orderBy: { sortOrder: 'asc' }, take: 1 } } },
+  product: {
+    select: {
+      title: true,
+      category: { select: { slug: true, name: true } },
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+    },
+  },
   variants: { where: { active: true }, include: { inventory: true } },
   merchant: {
     select: {
@@ -20,7 +26,10 @@ const CARD_INCLUDE = {
       type: true,
       publicAreaLabel: true,
       verifications: { where: { status: 'APPROVED' }, take: 1, select: { expiresAt: true } },
-      affiliations: { where: { status: 'APPROVED' }, select: { market: { select: { slug: true, name: true } } } },
+      affiliations: {
+        where: { status: 'APPROVED' },
+        select: { market: { select: { slug: true, name: true } } },
+      },
       fulfilmentOpts: { where: { enabled: true }, select: { method: true } },
     },
   },
@@ -35,19 +44,37 @@ export class ListingCardService {
 
   async byIds(ids: string[]) {
     if (!ids.length) return [];
-    const rows = await this.prisma.listing.findMany({ where: { id: { in: ids }, ...VISIBLE_LISTING_WHERE }, include: CARD_INCLUDE });
+    const rows = await this.prisma.listing.findMany({
+      where: { id: { in: ids }, ...VISIBLE_LISTING_WHERE },
+      include: CARD_INCLUDE,
+    });
     const byId = new Map(rows.map((r) => [r.id, r]));
-    return ids.map((id) => byId.get(id)).filter((r): r is CardRow => !!r).map((r) => this.serialize(r));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((r): r is CardRow => !!r)
+      .map((r) => this.serialize(r));
   }
 
-  async find(where: Prisma.ListingWhereInput, take: number, orderBy: Prisma.ListingOrderByWithRelationInput = { publishedAt: 'desc' }) {
-    const rows = await this.prisma.listing.findMany({ where: { AND: [where, VISIBLE_LISTING_WHERE] }, include: CARD_INCLUDE, take, orderBy });
+  async find(
+    where: Prisma.ListingWhereInput,
+    take: number,
+    orderBy: Prisma.ListingOrderByWithRelationInput = { publishedAt: 'desc' },
+  ) {
+    const rows = await this.prisma.listing.findMany({
+      where: { AND: [where, VISIBLE_LISTING_WHERE] },
+      include: CARD_INCLUDE,
+      take,
+      orderBy,
+    });
     return rows.filter((r) => r.variants.length > 0).map((r) => this.serialize(r));
   }
 
   serialize(l: CardRow) {
     const prices = l.variants.map((v) => v.priceMinor);
-    const cheapest = l.variants.reduce((a, b) => (b.priceMinor < a.priceMinor ? b : a), l.variants[0]);
+    const cheapest = l.variants.reduce(
+      (a, b) => (b.priceMinor < a.priceMinor ? b : a),
+      l.variants[0],
+    );
     const anyAvailable = l.variants
       .map((v) => availabilityFor(l.stockMode, l.leadTimeDays, v.inventory))
       .sort((a, b) => Number(b.purchasable) - Number(a.purchasable))[0];

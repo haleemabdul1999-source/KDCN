@@ -4,9 +4,7 @@ import { z } from 'zod';
  * Environment validation. The process refuses to start with an invalid configuration.
  * Every variable is documented in docs/ENVIRONMENT.md.
  */
-const bool = z
-  .enum(['true', 'false', '1', '0'])
-  .transform((v) => v === 'true' || v === '1');
+const bool = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
 
 const schema = z
   .object({
@@ -23,7 +21,11 @@ const schema = z
       .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be 32 bytes, base64 encoded'),
     /** Secret used to salt analytics visitor hashes and guest tokens. */
     APP_SECRET: z.string().min(32),
-    SESSION_TTL_HOURS: z.coerce.number().int().positive().default(24 * 14),
+    SESSION_TTL_HOURS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(24 * 14),
     STAFF_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
     COOKIE_SECURE: bool.optional(),
     TRUST_PROXY: bool.default('false'),
@@ -35,15 +37,27 @@ const schema = z
 
     STORAGE_DRIVER: z.enum(['local']).default('local'),
     STORAGE_LOCAL_DIR: z.string().default('./storage'),
-    MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+    MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(5 * 1024 * 1024),
 
     NOTIFY_EMAIL_DRIVER: z.enum(['log', 'disabled']).default('log'),
     NOTIFY_SMS_DRIVER: z.enum(['log', 'disabled']).default('log'),
 
     /** Minutes the merchant has to confirm availability before the order auto-cancels. */
-    CONFIRMATION_WINDOW_MINUTES: z.coerce.number().int().positive().default(24 * 60),
+    CONFIRMATION_WINDOW_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(24 * 60),
     /** Minutes the customer has to pay after confirmation before the order auto-cancels. */
-    PAYMENT_WINDOW_MINUTES: z.coerce.number().int().positive().default(6 * 60),
+    PAYMENT_WINDOW_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(6 * 60),
     /** Days after delivery/collection before an order auto-completes if no dispute is opened. */
     AUTO_COMPLETE_DAYS: z.coerce.number().int().positive().default(3),
     JOBS_ENABLED: bool.default('true'),
@@ -54,14 +68,26 @@ const schema = z
   })
   .superRefine((env, ctx) => {
     if (env.PAYMENT_PROVIDER === 'paystack' && !env.PAYSTACK_SECRET_KEY) {
-      ctx.addIssue({ code: 'custom', path: ['PAYSTACK_SECRET_KEY'], message: 'required when PAYMENT_PROVIDER=paystack' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PAYSTACK_SECRET_KEY'],
+        message: 'required when PAYMENT_PROVIDER=paystack',
+      });
     }
     if (env.NODE_ENV === 'production') {
       if (env.PAYMENT_PROVIDER === 'mock') {
-        ctx.addIssue({ code: 'custom', path: ['PAYMENT_PROVIDER'], message: 'mock provider is not allowed in production' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PAYMENT_PROVIDER'],
+          message: 'mock provider is not allowed in production',
+        });
       }
       if (env.APP_SECRET.includes('dev-only')) {
-        ctx.addIssue({ code: 'custom', path: ['APP_SECRET'], message: 'development secret used in production' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['APP_SECRET'],
+          message: 'development secret used in production',
+        });
       }
     }
   });
@@ -73,7 +99,9 @@ let cached: Env | undefined;
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = schema.safeParse(source);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
+    const issues = parsed.error.issues
+      .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
+      .join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   return parsed.data;

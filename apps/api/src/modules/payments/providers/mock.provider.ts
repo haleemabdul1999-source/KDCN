@@ -34,21 +34,38 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
   }
 
   private guard() {
-    if (MockPaymentProvider.unavailable) throw new ProviderUnavailableError('Mock provider unavailable (simulated outage)');
+    if (MockPaymentProvider.unavailable)
+      throw new ProviderUnavailableError('Mock provider unavailable (simulated outage)');
   }
 
   async initialize(input: InitializeInput): Promise<InitializeResult> {
     this.guard();
     await this.prisma.mockProviderCharge.create({
-      data: { reference: input.reference, amountMinor: input.amountMinor, currency: input.currency, email: input.email, status: 'pending' },
+      data: {
+        reference: input.reference,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+        email: input.email,
+        status: 'pending',
+      },
     });
-    return { authorizationUrl: `${env().WEB_BASE_URL}/pay/mock/${encodeURIComponent(input.reference)}` };
+    return {
+      authorizationUrl: `${env().WEB_BASE_URL}/pay/mock/${encodeURIComponent(input.reference)}`,
+    };
   }
 
   async verify(reference: string): Promise<VerifyResult> {
     this.guard();
     const c = await this.prisma.mockProviderCharge.findUnique({ where: { reference } });
-    if (!c) return { status: 'failed', reference, amountMinor: 0, currency: 'NGN', gatewayMessage: 'Transaction not found', raw: null };
+    if (!c)
+      return {
+        status: 'failed',
+        reference,
+        amountMinor: 0,
+        currency: 'NGN',
+        gatewayMessage: 'Transaction not found',
+        raw: null,
+      };
     return {
       status: c.status as VerifyResult['status'],
       reference,
@@ -64,7 +81,11 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
   }
 
   /** Simulates the customer completing (or failing) payment on the hosted page. */
-  async completeCharge(reference: string, outcome: 'success' | 'failed' | 'abandoned', amountOverrideMinor?: number) {
+  async completeCharge(
+    reference: string,
+    outcome: 'success' | 'failed' | 'abandoned',
+    amountOverrideMinor?: number,
+  ) {
     const c = await this.prisma.mockProviderCharge.findUnique({ where: { reference } });
     if (!c) return null;
     if (c.status !== 'pending') return c;
@@ -79,16 +100,24 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
   }
 
   /** Builds a signed webhook body + headers, as the provider would POST them. */
-  static signedWebhook(event: string, data: Record<string, unknown>): { body: Buffer; headers: Record<string, string> } {
+  static signedWebhook(
+    event: string,
+    data: Record<string, unknown>,
+  ): { body: Buffer; headers: Record<string, string> } {
     const body = Buffer.from(JSON.stringify({ event, data }));
     const sig = createHmac('sha512', env().MOCK_PAYMENT_WEBHOOK_SECRET).update(body).digest('hex');
     return { body, headers: { 'x-mock-signature': sig, 'content-type': 'application/json' } };
   }
 
-  parseWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): ParsedWebhook | null {
+  parseWebhook(
+    rawBody: Buffer,
+    headers: Record<string, string | string[] | undefined>,
+  ): ParsedWebhook | null {
     const sig = headers['x-mock-signature'];
     if (typeof sig !== 'string') return null;
-    const expected = createHmac('sha512', env().MOCK_PAYMENT_WEBHOOK_SECRET).update(rawBody).digest('hex');
+    const expected = createHmac('sha512', env().MOCK_PAYMENT_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest('hex');
     const a = Buffer.from(sig, 'hex');
     const b = Buffer.from(expected, 'hex');
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
@@ -101,23 +130,58 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
     const event = payload.event ?? 'unknown';
     const data = payload.data ?? {};
     if (event.startsWith('charge.')) {
-      return { eventKey: `${event}:${data.reference}`, eventType: event, kind: 'charge', reference: data.reference, payload };
+      return {
+        eventKey: `${event}:${data.reference}`,
+        eventType: event,
+        kind: 'charge',
+        reference: data.reference,
+        payload,
+      };
     }
     if (event.startsWith('refund.')) {
-      return { eventKey: `${event}:${data.id}`, eventType: event, kind: 'refund', providerRefundId: data.id, payload };
+      return {
+        eventKey: `${event}:${data.id}`,
+        eventType: event,
+        kind: 'refund',
+        providerRefundId: data.id,
+        payload,
+      };
     }
-    return { eventKey: `${event}:${data.id ?? data.reference}`, eventType: event, kind: 'other', payload };
+    return {
+      eventKey: `${event}:${data.id ?? data.reference}`,
+      eventType: event,
+      kind: 'other',
+      payload,
+    };
   }
 
   async refund(input: { reference: string; amountMinor: number }): Promise<RefundResult> {
     this.guard();
-    const c = await this.prisma.mockProviderCharge.findUnique({ where: { reference: input.reference } });
-    if (!c || c.status !== 'success') return { providerRefundId: `mockrf_${input.reference}_${Date.now()}`, status: 'failed', raw: { reason: 'charge not successful' } };
+    const c = await this.prisma.mockProviderCharge.findUnique({
+      where: { reference: input.reference },
+    });
+    if (!c || c.status !== 'success')
+      return {
+        providerRefundId: `mockrf_${input.reference}_${Date.now()}`,
+        status: 'failed',
+        raw: { reason: 'charge not successful' },
+      };
     if (c.refundedMinor + input.amountMinor > c.amountMinor) {
-      return { providerRefundId: `mockrf_${input.reference}_${Date.now()}`, status: 'failed', raw: { reason: 'refund exceeds charge' } };
+      return {
+        providerRefundId: `mockrf_${input.reference}_${Date.now()}`,
+        status: 'failed',
+        raw: { reason: 'refund exceeds charge' },
+      };
     }
-    await this.prisma.mockProviderCharge.update({ where: { reference: input.reference }, data: { refundedMinor: { increment: input.amountMinor } } });
-    return { providerRefundId: `mockrf_${input.reference}_${c.refundedMinor + input.amountMinor}`, status: 'processed', raw: { mock: true } };
+    await this.prisma.mockProviderCharge.update({
+      where: { reference: input.reference },
+      data: { refundedMinor: { increment: input.amountMinor } },
+    });
+    return {
+      providerRefundId: `mockrf_${input.reference}_${c.refundedMinor + input.amountMinor}`,
+      status: 'processed',
+      raw: { mock: true },
+    };
   }
 
   async fetchRefund(providerRefundId: string): Promise<RefundResult> {

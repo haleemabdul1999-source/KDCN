@@ -1,5 +1,14 @@
 import { applyBps, assertMinor, formatNaira } from '../../src/common/money';
-import { base32Decode, base32Encode, decryptField, encryptField, hashPassword, totp, verifyPassword, verifyTotp } from '../../src/common/crypto';
+import {
+  base32Decode,
+  base32Encode,
+  decryptField,
+  encryptField,
+  hashPassword,
+  totp,
+  verifyPassword,
+  verifyTotp,
+} from '../../src/common/crypto';
 
 describe('money', () => {
   it('applies basis points with integer half-up rounding', () => {

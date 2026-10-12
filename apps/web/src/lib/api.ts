@@ -4,9 +4,18 @@
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly body: { message?: string | string[]; code?: string; errors?: { path: string; message: string }[]; missing?: string[] } & Record<string, unknown>,
+    readonly body: {
+      message?: string | string[];
+      code?: string;
+      errors?: { path: string; message: string }[];
+      missing?: string[];
+    } & Record<string, unknown>,
   ) {
-    super(Array.isArray(body?.message) ? body.message.join(', ') : body?.message || `Request failed (${status})`);
+    super(
+      Array.isArray(body?.message)
+        ? body.message.join(', ')
+        : body?.message || `Request failed (${status})`,
+    );
   }
   fieldErrors(): Record<string, string> {
     return Object.fromEntries((this.body?.errors ?? []).map((e) => [e.path, e.message]));
@@ -55,7 +64,12 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   }
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, { method: opts.method ?? (body ? 'POST' : 'GET'), headers, body, credentials: 'same-origin' });
+    res = await fetch(`/api${path}`, {
+      method: opts.method ?? (body ? 'POST' : 'GET'),
+      headers,
+      body,
+      credentials: 'same-origin',
+    });
   } catch {
     throw new ApiError(0, { message: 'Network error — check your connection and try again.' });
   }

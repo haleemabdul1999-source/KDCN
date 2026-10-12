@@ -13,12 +13,19 @@ import { JsonLogger } from './common/logger';
 export async function createApp(opts: { logger?: boolean } = {}): Promise<INestApplication> {
   const e = env();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: opts.logger === false ? false : new JsonLogger(e.NODE_ENV === 'production' ? 'info' : 'debug'),
+    logger:
+      opts.logger === false
+        ? false
+        : new JsonLogger(e.NODE_ENV === 'production' ? 'info' : 'debug'),
     bodyParser: false,
   });
   if (e.TRUST_PROXY) app.set('trust proxy', 1);
   app.disable('x-powered-by');
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } } }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    }),
+  );
   // Keep the raw body for webhook signature verification.
   app.use(
     json({
@@ -30,12 +37,15 @@ export async function createApp(opts: { logger?: boolean } = {}): Promise<INestA
   );
   app.use(urlencoded({ extended: false, limit: '64kb' }));
   app.use(cookieParser());
-  app.use((req: KdcnRequest, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
-    const incoming = req.headers['x-request-id'];
-    req.requestId = typeof incoming === 'string' && /^[\w-]{8,64}$/.test(incoming) ? incoming : randomUUID();
-    res.setHeader('X-Request-Id', req.requestId);
-    next();
-  });
+  app.use(
+    (req: KdcnRequest, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
+      const incoming = req.headers['x-request-id'];
+      req.requestId =
+        typeof incoming === 'string' && /^[\w-]{8,64}$/.test(incoming) ? incoming : randomUUID();
+      res.setHeader('X-Request-Id', req.requestId);
+      next();
+    },
+  );
   // The web app proxies /api/* to this service, so the browser sees a single origin.
   // CORS is therefore not enabled; cross-origin browser calls are rejected.
   app.setGlobalPrefix('api', { exclude: [] });

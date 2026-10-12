@@ -52,6 +52,7 @@ model User {
   updatedAt         DateTime    @updatedAt
 
   sessions          Session[]
+  passwordResets    PasswordResetToken[]
   customerProfile   CustomerProfile?
   merchantMembers   MerchantMember[]
   operatorMembers   MarketOperatorMember[]
@@ -80,6 +81,21 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+/// Single-use, short-lived password reset token (only the SHA-256 hash is stored).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model CustomerProfile {
@@ -231,6 +247,7 @@ model Merchant {
   enquiries       Enquiry[]
 
   @@index([status, type])
+  @@index([displayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "merchants_name_trgm_idx")
   @@map("merchants")
 }
 
@@ -572,6 +589,7 @@ model Product {
   listings  Listing[]
 
   @@index([categoryId])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_title_trgm_idx")
   @@map("products")
 }
 
@@ -644,6 +662,7 @@ model Listing {
   @@unique([merchantId, productId])
   @@index([status])
   @@index([merchantId, status])
+  @@index([searchVector], type: Gin, map: "listings_search_idx")
   @@map("listings")
 }
 

@@ -6,7 +6,7 @@ independent shops and home-based vendors**.
 
 The merchant — not the physical market — is the primary commercial entity. Every merchant uses the
 same catalogue, checkout, order, payment, fulfilment and settlement system; markets such as Galaxy
-Mall are *collections* of affiliated merchants, not separate systems.
+Mall are _collections_ of affiliated merchants, not separate systems.
 
 > **Status:** Release 1 (commercially testable MVP) implemented and tested against the
 > **deterministic mock payment provider**. The Paystack adapter is implemented but **has not been
@@ -17,17 +17,17 @@ Mall are *collections* of affiliated merchants, not separate systems.
 
 ## What's in the box
 
-| Area | Where |
-| --- | --- |
-| Customer marketplace (home, search, product, storefront, Galaxy Mall & market pages, cart, checkout, orders, tracking) | `apps/web/src/app` |
-| Merchant dashboard (onboarding & verification, products, orders & fulfilment, payouts, customers, settings, staff) | `apps/web/src/app/merchant/[merchantId]` |
-| KDCN admin (verification, moderation, orders, disputes, fulfilment, finance, analytics, audit, users) | `apps/web/src/app/admin` |
-| Market operator portal | `apps/web/src/app/operator/[marketId]` |
-| API — NestJS modular monolith | `apps/api/src` |
-| Database schema & migrations — PostgreSQL / Prisma | `apps/api/prisma` |
-| API tests (unit + integration for acceptance scenarios A–H) | `apps/api/test` |
-| End-to-end browser tests (Playwright) | `apps/web/e2e` |
-| Documentation | `docs/` |
+| Area                                                                                                                   | Where                                    |
+| ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Customer marketplace (home, search, product, storefront, Galaxy Mall & market pages, cart, checkout, orders, tracking) | `apps/web/src/app`                       |
+| Merchant dashboard (onboarding & verification, products, orders & fulfilment, payouts, customers, settings, staff)     | `apps/web/src/app/merchant/[merchantId]` |
+| KDCN admin (verification, moderation, orders, disputes, fulfilment, finance, analytics, audit, users)                  | `apps/web/src/app/admin`                 |
+| Market operator portal                                                                                                 | `apps/web/src/app/operator/[marketId]`   |
+| API — NestJS modular monolith                                                                                          | `apps/api/src`                           |
+| Database schema & migrations — PostgreSQL / Prisma                                                                     | `apps/api/prisma`                        |
+| API tests (unit + integration for acceptance scenarios A–H)                                                            | `apps/api/test`                          |
+| End-to-end browser tests (Playwright)                                                                                  | `apps/web/e2e`                           |
+| Documentation                                                                                                          | `docs/`                                  |
 
 ## Stack
 
@@ -67,15 +67,15 @@ Open http://localhost:3000.
 
 ### Demo accounts (created by the seed when `SEED_DEMO=true`; never in production)
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Customer | `customer@demo.kdcn.ng` | `Password123!` |
-| Galaxy Mall merchant (Zainab Fabrics) | `galaxy.merchant@demo.kdcn.ng` | `Password123!` |
-| Home vendor (Amina Bakes) | `home.vendor@demo.kdcn.ng` | `Password123!` |
-| Independent shop (Kawo Gadgets Hub) | `independent@demo.kdcn.ng` | `Password123!` |
-| Galaxy Mall operator | `operator@demo.kdcn.ng` | `Password123!` |
-| KDCN super-admin | `admin@demo.kdcn.ng` | `AdminPassword123!` + TOTP |
-| KDCN ops/support/finance | `ops@demo.kdcn.ng` | `Password123!` + TOTP |
+| Role                                  | Email                          | Password                   |
+| ------------------------------------- | ------------------------------ | -------------------------- |
+| Customer                              | `customer@demo.kdcn.ng`        | `Password123!`             |
+| Galaxy Mall merchant (Zainab Fabrics) | `galaxy.merchant@demo.kdcn.ng` | `Password123!`             |
+| Home vendor (Amina Bakes)             | `home.vendor@demo.kdcn.ng`     | `Password123!`             |
+| Independent shop (Kawo Gadgets Hub)   | `independent@demo.kdcn.ng`     | `Password123!`             |
+| Galaxy Mall operator                  | `operator@demo.kdcn.ng`        | `Password123!`             |
+| KDCN super-admin                      | `admin@demo.kdcn.ng`           | `AdminPassword123!` + TOTP |
+| KDCN ops/support/finance              | `ops@demo.kdcn.ng`             | `Password123!` + TOTP      |
 
 Staff accounts require TOTP MFA. In development the seed pre-enrols the secret in
 `SEED_ADMIN_TOTP_SECRET` (`JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`) — add it to any authenticator app.

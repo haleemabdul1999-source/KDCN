@@ -47,7 +47,9 @@ import { MediaController } from './modules/storage/media.controller';
 @Module({
   imports: [
     CommonModule,
-    ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: env().RATE_LIMIT_PER_MINUTE }] }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: env().RATE_LIMIT_PER_MINUTE }],
+    }),
   ],
   controllers: [
     HealthController,

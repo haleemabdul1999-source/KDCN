@@ -18,15 +18,38 @@ describe('Scenario D — merchant isolation and object-level authorisation', () 
   beforeAll(async () => {
     ctx = await setupApp();
     const staff = await staffClient(ctx);
-    a = await onboardMerchant(ctx, staff, null, { type: MerchantType.INDEPENDENT_SHOP, name: 'Shop A', fulfilment: [{ method: 'IN_STORE_COLLECTION' }] });
-    b = await onboardMerchant(ctx, staff, null, { type: MerchantType.INDEPENDENT_SHOP, name: 'Shop B', fulfilment: [{ method: 'IN_STORE_COLLECTION' }] });
+    a = await onboardMerchant(ctx, staff, null, {
+      type: MerchantType.INDEPENDENT_SHOP,
+      name: 'Shop A',
+      fulfilment: [{ method: 'IN_STORE_COLLECTION' }],
+    });
+    b = await onboardMerchant(ctx, staff, null, {
+      type: MerchantType.INDEPENDENT_SHOP,
+      name: 'Shop B',
+      fulfilment: [{ method: 'IN_STORE_COLLECTION' }],
+    });
     const cats = await categoryMap(ctx);
-    listingA = await createListing(a.owner, a.merchantId, { title: 'Secret draft item', categorySlug: 'kitchen', stockMode: 'TRACKED', price: 100000, quantity: 3 }, cats);
+    listingA = await createListing(
+      a.owner,
+      a.merchantId,
+      {
+        title: 'Secret draft item',
+        categorySlug: 'kitchen',
+        stockMode: 'TRACKED',
+        price: 100000,
+        quantity: 3,
+      },
+      cats,
+    );
     customer = (await registerCustomer(ctx.app)).client;
-    orderA = await placeOrder(customer, listingA.variants[0].id, a.merchantId, { fulfilmentMethod: 'IN_STORE_COLLECTION' });
+    orderA = await placeOrder(customer, listingA.variants[0].id, a.merchantId, {
+      fulfilmentMethod: 'IN_STORE_COLLECTION',
+    });
     await payOrder(customer, orderA.id);
     const op = await registerCustomer(ctx.app);
-    await ctx.prisma.marketOperatorMember.create({ data: { marketId: ctx.ref.galaxy.id, userId: op.userId, role: OperatorRole.MARKET_EDITOR } });
+    await ctx.prisma.marketOperatorMember.create({
+      data: { marketId: ctx.ref.galaxy.id, userId: op.userId, role: OperatorRole.MARKET_EDITOR },
+    });
     operator = op.client;
   });
   afterAll(() => ctx.app.close());
@@ -43,20 +66,37 @@ describe('Scenario D — merchant isolation and object-level authorisation', () 
       b.owner.post(`${base}/orders/${orderA.id}/accept`),
       b.owner.get(`${base}/settlements`),
       b.owner.get(`${base}/analytics`),
-      b.owner.put(`${base}/payout`, { bankCode: '058', accountNumber: '9999999999', accountName: 'Thief' }),
+      b.owner.put(`${base}/payout`, {
+        bankCode: '058',
+        accountNumber: '9999999999',
+        accountName: 'Thief',
+      }),
       b.owner.get(`${base}/members`),
     ];
-    for (const res of await Promise.all(attempts)) expect(res.status).toBe(404);
+    const statuses = (await Promise.all(attempts)).map(
+      (r, i) => `${r.status}:#${i}:${JSON.stringify(r.body).slice(0, 120)}`,
+    );
+    expect(statuses.filter((s) => !s.startsWith('404'))).toEqual([]);
   });
 
   it("merchant B cannot reach A's objects by substituting IDs under its own merchantId", async () => {
     const base = `/merchant/${b.merchantId}`;
     expect((await b.owner.get(`${base}/listings/${listingA.id}`)).status).toBe(404);
-    expect((await b.owner.patch(`${base}/listings/${listingA.id}`, { title: 'Hijacked' })).status).toBe(404);
-    expect((await b.owner.put(`${base}/listings/${listingA.id}/inventory/${listingA.variants[0].id}`, { quantity: 0 })).status).toBe(404);
+    expect(
+      (await b.owner.patch(`${base}/listings/${listingA.id}`, { title: 'Hijacked' })).status,
+    ).toBe(404);
+    expect(
+      (
+        await b.owner.put(`${base}/listings/${listingA.id}/inventory/${listingA.variants[0].id}`, {
+          quantity: 0,
+        })
+      ).status,
+    ).toBe(404);
     expect((await b.owner.get(`${base}/orders/${orderA.id}`)).status).toBe(404);
     expect((await b.owner.post(`${base}/orders/${orderA.id}/accept`)).status).toBe(404);
-    expect((await b.owner.post(`${base}/orders/${orderA.id}/cancel`, { reason: 'sabotage' })).status).toBe(404);
+    expect(
+      (await b.owner.post(`${base}/orders/${orderA.id}/cancel`, { reason: 'sabotage' })).status,
+    ).toBe(404);
     const listed = await b.owner.get(`${base}/orders`);
     expect(listed.body.items).toHaveLength(0);
     const s = await b.owner.get(`${base}/settlements`);
@@ -64,7 +104,13 @@ describe('Scenario D — merchant isolation and object-level authorisation', () 
     // Nothing changed.
     const fresh = await ctx.prisma.order.findUniqueOrThrow({ where: { id: orderA.id } });
     expect(fresh.status).toBe('PAID');
-    expect((await ctx.prisma.product.findFirstOrThrow({ where: { listings: { some: { id: listingA.id } } } })).title).toBe('Secret draft item');
+    expect(
+      (
+        await ctx.prisma.product.findFirstOrThrow({
+          where: { listings: { some: { id: listingA.id } } },
+        })
+      ).title,
+    ).toBe('Secret draft item');
   });
 
   it('customers cannot read other customers orders; anonymous users need the guest token', async () => {
@@ -83,18 +129,30 @@ describe('Scenario D — merchant isolation and object-level authorisation', () 
     const support = await staffClient(ctx, ['SUPPORT']);
     expect((await support.get('/admin/disputes')).status).toBe(200);
     expect((await support.get('/admin/settlements')).status).toBe(403);
-    expect((await support.post(`/admin/merchants/${a.merchantId}/suspend`, { note: 'nope nope' })).status).toBe(403);
+    expect(
+      (await support.post(`/admin/merchants/${a.merchantId}/suspend`, { note: 'nope nope' }))
+        .status,
+    ).toBe(403);
   });
 
   it('market operators see only aggregate, public information', async () => {
     const res = await operator.get(`/operator/${ctx.ref.galaxy.id}/merchants`);
     expect(res.status).toBe(200);
     const text = JSON.stringify(res.body);
-    for (const forbidden of ['payout', 'contactEmail', 'privateAddress', 'customer']) expect(text).not.toContain(forbidden);
+    for (const forbidden of ['payout', 'contactEmail', 'privateAddress', 'customer'])
+      expect(text).not.toContain(forbidden);
     // Editors cannot approve affiliations.
-    expect((await operator.post(`/operator/${ctx.ref.galaxy.id}/affiliations/00000000-0000-0000-0000-000000000000/approve`)).status).toBe(403);
+    expect(
+      (
+        await operator.post(
+          `/operator/${ctx.ref.galaxy.id}/affiliations/00000000-0000-0000-0000-000000000000/approve`,
+        )
+      ).status,
+    ).toBe(403);
     // Operators cannot read another market.
-    const other = await ctx.prisma.market.findFirstOrThrow({ where: { slug: 'kaduna-central-market' } });
+    const other = await ctx.prisma.market.findFirstOrThrow({
+      where: { slug: 'kaduna-central-market' },
+    });
     expect((await operator.get(`/operator/${other.id}`)).status).toBe(404);
   });
 

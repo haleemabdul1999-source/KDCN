@@ -14,7 +14,15 @@ export class NotificationsController {
       where: { userId: auth.user.id, channel: NotificationChannel.IN_APP },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      select: { id: true, template: true, subject: true, body: true, data: true, readAt: true, createdAt: true },
+      select: {
+        id: true,
+        template: true,
+        subject: true,
+        body: true,
+        data: true,
+        readAt: true,
+        createdAt: true,
+      },
     });
     const unread = await this.prisma.notification.count({
       where: { userId: auth.user.id, channel: NotificationChannel.IN_APP, readAt: null },

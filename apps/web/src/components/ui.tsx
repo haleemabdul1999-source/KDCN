@@ -3,7 +3,13 @@ import type { ReactNode } from 'react';
 import { humanize, naira, STATUS_TONE } from '@/lib/format';
 import type { Availability } from '@/lib/types';
 
-export function Money({ minor, className }: { minor: number | null | undefined; className?: string }) {
+export function Money({
+  minor,
+  className,
+}: {
+  minor: number | null | undefined;
+  className?: string;
+}) {
   return <span className={className}>{naira(minor)}</span>;
 }
 
@@ -12,7 +18,12 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
 }
 
 export function AvailabilityBadge({ a }: { a: Availability }) {
-  const tone = a.code === 'OUT_OF_STOCK' ? 'badge-red' : a.code === 'IN_STOCK' || a.code === 'LOW_STOCK' ? 'badge-green' : 'badge-amber';
+  const tone =
+    a.code === 'OUT_OF_STOCK'
+      ? 'badge-red'
+      : a.code === 'IN_STOCK' || a.code === 'LOW_STOCK'
+        ? 'badge-green'
+        : 'badge-amber';
   return <span className={`badge ${tone}`}>{a.label}</span>;
 }
 
@@ -20,13 +31,24 @@ export function AvailabilityBadge({ a }: { a: Availability }) {
 export function VerifiedBadge({ verified, withHint }: { verified: boolean; withHint?: boolean }) {
   if (!verified) return null;
   return (
-    <span className="badge badge-green" title="KDCN has verified this seller's identity. This is not a guarantee of product quality.">
+    <span
+      className="badge badge-green"
+      title="KDCN has verified this seller's identity. This is not a guarantee of product quality."
+    >
       ✓ Identity verified{withHint ? ' by KDCN' : ''}
     </span>
   );
 }
 
-export function Alert({ tone = 'info', children, title }: { tone?: 'info' | 'success' | 'warn' | 'error'; children: ReactNode; title?: string }) {
+export function Alert({
+  tone = 'info',
+  children,
+  title,
+}: {
+  tone?: 'info' | 'success' | 'warn' | 'error';
+  children: ReactNode;
+  title?: string;
+}) {
   return (
     <div className={`alert alert-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
       {title && <strong style={{ display: 'block', marginBottom: 2 }}>{title}</strong>}
@@ -35,7 +57,15 @@ export function Alert({ tone = 'info', children, title }: { tone?: 'info' | 'suc
   );
 }
 
-export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function Empty({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div className="empty">
       <h3>{title}</h3>
@@ -47,14 +77,27 @@ export function Empty({ title, children, action }: { title: string; children?: R
 
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
-    <div className="row" style={{ padding: 24, justifyContent: 'center' }} role="status" aria-live="polite">
+    <div
+      className="row"
+      style={{ padding: 24, justifyContent: 'center' }}
+      role="status"
+      aria-live="polite"
+    >
       <span className="spinner" aria-hidden="true" />
       <span className="muted">{label}…</span>
     </div>
   );
 }
 
-export function Stat({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
+export function Stat({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+}) {
   return (
     <div className="stat">
       <div className="label">{label}</div>
@@ -64,11 +107,25 @@ export function Stat({ label, value, note }: { label: string; value: ReactNode; 
   );
 }
 
-export function Pagination({ page, pageSize, total, href }: { page: number; pageSize: number; total: number; href: (page: number) => string }) {
+export function Pagination({
+  page,
+  pageSize,
+  total,
+  href,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  href: (page: number) => string;
+}) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (pages <= 1) return null;
   return (
-    <nav className="row" aria-label="Pagination" style={{ justifyContent: 'center', marginTop: 24 }}>
+    <nav
+      className="row"
+      aria-label="Pagination"
+      style={{ justifyContent: 'center', marginTop: 24 }}
+    >
       {page > 1 && (
         <Link className="btn btn-secondary btn-sm" href={href(page - 1)} rel="prev">
           ← Previous

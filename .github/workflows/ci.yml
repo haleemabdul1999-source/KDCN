@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — lint, typecheck, tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kdcn
+          POSTGRES_PASSWORD: kdcn
+          POSTGRES_DB: kdcn_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kdcn" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://kdcn:kdcn@localhost:5432/kdcn_test
+      DATABASE_URL: postgresql://kdcn:kdcn@localhost:5432/kdcn_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @kdcn/api exec prisma generate
+      - run: pnpm format:check
+      - run: pnpm --filter @kdcn/api lint
+      - run: pnpm --filter @kdcn/api typecheck
+      - name: Schema and migrations are in sync
+        run: |
+          psql postgresql://kdcn:kdcn@localhost:5432/kdcn_test -c 'CREATE DATABASE kdcn_shadow'
+          pnpm --filter @kdcn/api exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://kdcn:kdcn@localhost:5432/kdcn_shadow --exit-code
+      - run: pnpm --filter @kdcn/api test
+      - run: pnpm --filter @kdcn/api build
+      - name: Dependency audit (high & critical)
+        run: pnpm audit --prod --audit-level high
+        continue-on-error: true
+
+  web:
+    name: Web — typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @kdcn/web typecheck
+      - run: pnpm --filter @kdcn/web build
+        env: { NEXT_TELEMETRY_DISABLED: 1 }
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kdcn
+          POSTGRES_PASSWORD: kdcn
+          POSTGRES_DB: kdcn_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kdcn" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @kdcn/api exec prisma generate && pnpm --filter @kdcn/api build
+      - run: pnpm --filter @kdcn/web build
+        env: { NEXT_TELEMETRY_DISABLED: 1 }
+      - run: pnpm --filter @kdcn/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @kdcn/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-traces, path: apps/web/test-results }

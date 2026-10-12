@@ -7,7 +7,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: { default: 'KDCN — Kaduna Digital Commerce Network', template: '%s · KDCN' },
-  description: 'Shop verified sellers from Galaxy Mall, Kaduna markets, independent shops and home-based vendors — in one place.',
+  description:
+    'Shop verified sellers from Galaxy Mall, Kaduna markets, independent shops and home-based vendors — in one place.',
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#0a4d38' };
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="container cols">
               <div>
                 <strong>KDCN</strong>
-                <p>Kaduna Digital Commerce Network connects Kaduna businesses — mall stores, market traders, independent shops and home-based vendors — with customers.</p>
+                <p>
+                  Kaduna Digital Commerce Network connects Kaduna businesses — mall stores, market
+                  traders, independent shops and home-based vendors — with customers.
+                </p>
               </div>
               <div className="stack-sm">
                 <div>
@@ -40,7 +44,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
               <div>
                 <p>
-                  “Identity verified” means KDCN has checked who a seller is. It is not a guarantee of product quality. Payments are processed by a licensed payment provider; refunds follow each order&apos;s published terms.
+                  “Identity verified” means KDCN has checked who a seller is. It is not a guarantee
+                  of product quality. Payments are processed by a licensed payment provider; refunds
+                  follow each order&apos;s published terms.
                 </p>
               </div>
             </div>

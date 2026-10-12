@@ -20,15 +20,28 @@ export function availabilityFor(
   if (stockMode === StockMode.MADE_TO_ORDER) {
     return {
       code: 'MADE_TO_ORDER',
-      label: leadTimeDays > 0 ? `Made to order · ready in about ${leadTimeDays} day${leadTimeDays === 1 ? '' : 's'}` : 'Made to order',
+      label:
+        leadTimeDays > 0
+          ? `Made to order · ready in about ${leadTimeDays} day${leadTimeDays === 1 ? '' : 's'}`
+          : 'Made to order',
       purchasable: true,
     };
   }
   if (stockMode === StockMode.CONFIRM_ON_ORDER) {
-    return { code: 'CONFIRM_ON_ORDER', label: 'Seller confirms availability before you pay', purchasable: true };
+    return {
+      code: 'CONFIRM_ON_ORDER',
+      label: 'Seller confirms availability before you pay',
+      purchasable: true,
+    };
   }
   const available = Math.max(0, (inventory?.quantity ?? 0) - (inventory?.reserved ?? 0));
   if (available <= 0) return { code: 'OUT_OF_STOCK', label: 'Out of stock', purchasable: false };
-  if (available <= 5) return { code: 'LOW_STOCK', label: `Only ${available} left`, purchasable: true, quantityHint: available };
+  if (available <= 5)
+    return {
+      code: 'LOW_STOCK',
+      label: `Only ${available} left`,
+      purchasable: true,
+      quantityHint: available,
+    };
   return { code: 'IN_STOCK', label: 'In stock', purchasable: true };
 }

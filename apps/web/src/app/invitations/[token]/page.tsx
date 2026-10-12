@@ -16,7 +16,9 @@ export default function InvitationPage() {
   if (!me)
     return (
       <Alert tone="info">
-        <Link href={`/login?next=/invitations/${token}`}>Sign in</Link> or <Link href={`/register?next=/invitations/${token}`}>create an account</Link> with the email address the invitation was sent to.
+        <Link href={`/login?next=/invitations/${token}`}>Sign in</Link> or{' '}
+        <Link href={`/register?next=/invitations/${token}`}>create an account</Link> with the email
+        address the invitation was sent to.
       </Alert>
     );
   return (

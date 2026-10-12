@@ -1,4 +1,11 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Response } from 'express';
 import { KdcnRequest } from './auth/auth.types';
@@ -39,7 +46,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
-      this.logger.error({ msg: 'request.failed', requestId: req.requestId, method: req.method, path: req.path, error: (exception as Error)?.message }, (exception as Error)?.stack);
+      this.logger.error(
+        {
+          msg: 'request.failed',
+          requestId: req.requestId,
+          method: req.method,
+          path: req.path,
+          error: (exception as Error)?.message,
+        },
+        (exception as Error)?.stack,
+      );
     }
     res.status(status).json({ statusCode: status, requestId: req.requestId, ...body });
   }

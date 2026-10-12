@@ -17,12 +17,17 @@ export class ProviderRegistry {
       this.adapters.set(PaymentProvider.MOCK, new MockPaymentProvider(prisma));
     }
     if (e.PAYSTACK_SECRET_KEY) {
-      this.adapters.set(PaymentProvider.PAYSTACK, new PaystackProvider(e.PAYSTACK_SECRET_KEY, e.PAYSTACK_BASE_URL));
+      this.adapters.set(
+        PaymentProvider.PAYSTACK,
+        new PaystackProvider(e.PAYSTACK_SECRET_KEY, e.PAYSTACK_BASE_URL),
+      );
     }
   }
 
   active(): PaymentProviderAdapter {
-    return this.get(env().PAYMENT_PROVIDER === 'paystack' ? PaymentProvider.PAYSTACK : PaymentProvider.MOCK);
+    return this.get(
+      env().PAYMENT_PROVIDER === 'paystack' ? PaymentProvider.PAYSTACK : PaymentProvider.MOCK,
+    );
   }
 
   get(id: PaymentProvider): PaymentProviderAdapter {

@@ -1,5 +1,10 @@
 import { OrderStatus as S } from '@prisma/client';
-import { assertTransition, canTransition, ORDER_TRANSITIONS, TERMINAL_STATUSES } from '../../src/modules/orders/order-state-machine';
+import {
+  assertTransition,
+  canTransition,
+  ORDER_TRANSITIONS,
+  TERMINAL_STATUSES,
+} from '../../src/modules/orders/order-state-machine';
 
 describe('order state machine', () => {
   it('defines transitions for every status', () => {
@@ -29,7 +34,14 @@ describe('order state machine', () => {
     for (const start of Object.values(S)) {
       const seen = new Set<S>([start]);
       const queue = [start];
-      while (queue.length) for (const n of ORDER_TRANSITIONS[queue.shift()!]) if (!seen.has(n)) (seen.add(n), queue.push(n));
+      while (queue.length) {
+        for (const n of ORDER_TRANSITIONS[queue.shift()!]) {
+          if (!seen.has(n)) {
+            seen.add(n);
+            queue.push(n);
+          }
+        }
+      }
       expect([...seen].some((s) => goal.has(s))).toBe(true);
     }
   });

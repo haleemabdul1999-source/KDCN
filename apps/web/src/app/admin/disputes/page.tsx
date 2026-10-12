@@ -31,9 +31,15 @@ export default function Disputes() {
       {loading && <Loading />}
       {data?.items.length === 0 && <p className="muted">No disputes.</p>}
       {data?.items.map((d) => (
-        <Link key={d.id} href={`/admin/disputes/${d.id}`} className="card-flat row-between" style={{ color: 'inherit' }}>
+        <Link
+          key={d.id}
+          href={`/admin/disputes/${d.id}`}
+          className="card-flat row-between"
+          style={{ color: 'inherit' }}
+        >
           <span>
-            <strong>{d.order.number}</strong> · {d.order.merchant.displayName} · {d.reason.replace(/_/g, ' ')} · {naira(d.order.totalMinor)}
+            <strong>{d.order.number}</strong> · {d.order.merchant.displayName} ·{' '}
+            {d.reason.replace(/_/g, ' ')} · {naira(d.order.totalMinor)}
             <div className="meta">
               Opened {date(d.createdAt, true)} {d.assignedToId ? '· assigned' : '· unassigned'}
             </div>

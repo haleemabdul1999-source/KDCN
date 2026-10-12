@@ -20,7 +20,13 @@ interface MarketPage {
   coverUrl: string | null;
   branded: boolean;
   announcements: { id: string; title: string; body: string; startsAt: string }[];
-  collectionPoints: { id: string; name: string; publicAddress: string; openingHours: string; instructions: string }[];
+  collectionPoints: {
+    id: string;
+    name: string;
+    publicAddress: string;
+    openingHours: string;
+    instructions: string;
+  }[];
   categories: { slug: string; name: string }[];
   merchants: PublicMerchant[];
   collections: { slug: string; title: string; description: string; items: ListingCard[] }[];
@@ -37,8 +43,23 @@ export default async function MarketLanding({ params }: { params: Promise<{ slug
   if (!m) notFound();
   return (
     <div className="stack">
-      <section className="hero" style={m.coverUrl ? { background: `linear-gradient(rgba(6,59,43,.75), rgba(6,59,43,.75)), center/cover url(${m.coverUrl})` } : undefined}>
-        <span className="badge badge-amber">{m.kind === 'SHOPPING_MALL' ? 'Shopping mall' : m.kind === 'TRADITIONAL_MARKET' ? 'Market' : 'Commercial cluster'}</span>
+      <section
+        className="hero"
+        style={
+          m.coverUrl
+            ? {
+                background: `linear-gradient(rgba(6,59,43,.75), rgba(6,59,43,.75)), center/cover url(${m.coverUrl})`,
+              }
+            : undefined
+        }
+      >
+        <span className="badge badge-amber">
+          {m.kind === 'SHOPPING_MALL'
+            ? 'Shopping mall'
+            : m.kind === 'TRADITIONAL_MARKET'
+              ? 'Market'
+              : 'Commercial cluster'}
+        </span>
         <h1 style={{ marginTop: 8 }}>{m.name}</h1>
         <p>{m.tagline || m.description}</p>
         <form action="/search" className="hero-search" role="search">
@@ -69,7 +90,11 @@ export default async function MarketLanding({ params }: { params: Promise<{ slug
       {m.categories.length > 0 && (
         <div className="chip-row" aria-label="Categories in this market">
           {m.categories.map((c) => (
-            <Link key={c.slug} className="chip" href={`/search?market=${m.slug}&category=${c.slug}`}>
+            <Link
+              key={c.slug}
+              className="chip"
+              href={`/search?market=${m.slug}&category=${c.slug}`}
+            >
               {c.name}
             </Link>
           ))}
@@ -82,7 +107,10 @@ export default async function MarketLanding({ params }: { params: Promise<{ slug
       {m.merchants.length === 0 ? (
         <p className="muted">No stores are live yet.</p>
       ) : (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}
+        >
           {m.merchants.map((x) => (
             <MerchantCard key={x.id} m={x} />
           ))}

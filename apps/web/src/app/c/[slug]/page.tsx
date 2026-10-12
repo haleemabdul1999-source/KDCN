@@ -6,7 +6,9 @@ import type { ListingCard } from '@/lib/types';
 export const revalidate = 60;
 
 export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
-  const c = await serverGet<{ title: string; description: string; items: ListingCard[] }>(`/collections/${(await params).slug}`);
+  const c = await serverGet<{ title: string; description: string; items: ListingCard[] }>(
+    `/collections/${(await params).slug}`,
+  );
   if (!c) notFound();
   return (
     <div className="stack">

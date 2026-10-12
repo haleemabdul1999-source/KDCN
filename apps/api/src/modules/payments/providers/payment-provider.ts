@@ -64,13 +64,19 @@ export interface PaymentProviderAdapter {
   initialize(input: InitializeInput): Promise<InitializeResult>;
   verify(reference: string): Promise<VerifyResult>;
   /** Returns null when the signature is invalid. */
-  parseWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): ParsedWebhook | null;
+  parseWebhook(
+    rawBody: Buffer,
+    headers: Record<string, string | string[] | undefined>,
+  ): ParsedWebhook | null;
   refund(input: { reference: string; amountMinor: number; reason: string }): Promise<RefundResult>;
   fetchRefund(providerRefundId: string): Promise<RefundResult>;
 }
 
 export class ProviderUnavailableError extends Error {
-  constructor(message: string, override readonly cause?: unknown) {
+  constructor(
+    message: string,
+    override readonly cause?: unknown,
+  ) {
     super(message);
   }
 }

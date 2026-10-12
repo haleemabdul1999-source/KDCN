@@ -22,16 +22,29 @@ export default function TrackPage() {
           saveOrderToken(o.id, token);
           router.push(`/orders/${o.id}`);
         } catch (err) {
-          setError(err instanceof ApiError && err.status === 404 ? 'We could not find an order with those details.' : 'Something went wrong.');
+          setError(
+            err instanceof ApiError && err.status === 404
+              ? 'We could not find an order with those details.'
+              : 'Something went wrong.',
+          );
         }
       }}
     >
       <h1>Track an order</h1>
-      <p className="small muted">Signed-in customers can see all orders under “Account”. Guest orders: use the order number and tracking key from your confirmation email.</p>
+      <p className="small muted">
+        Signed-in customers can see all orders under “Account”. Guest orders: use the order number
+        and tracking key from your confirmation email.
+      </p>
       {error && <Alert tone="error">{error}</Alert>}
       <div className="field">
         <label htmlFor="num">Order number</label>
-        <input id="num" required placeholder="KD261012-ABC123" value={number} onChange={(e) => setNumber(e.target.value)} />
+        <input
+          id="num"
+          required
+          placeholder="KD261012-ABC123"
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+        />
       </div>
       <div className="field">
         <label htmlFor="tok">Tracking key</label>

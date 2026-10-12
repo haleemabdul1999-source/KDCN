@@ -7,8 +7,25 @@ import type { NextRequest } from 'next/server';
  */
 export const dynamic = 'force-dynamic';
 
-const FORWARD_REQUEST_HEADERS = ['cookie', 'content-type', 'x-kdcn-csrf', 'x-kdcn-order-token', 'idempotency-key', 'user-agent', 'accept', 'x-request-id', 'x-paystack-signature', 'x-mock-signature'];
-const DROP_RESPONSE_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive']);
+const FORWARD_REQUEST_HEADERS = [
+  'cookie',
+  'content-type',
+  'x-kdcn-csrf',
+  'x-kdcn-order-token',
+  'idempotency-key',
+  'user-agent',
+  'accept',
+  'x-request-id',
+  'x-paystack-signature',
+  'x-mock-signature',
+];
+const DROP_RESPONSE_HEADERS = new Set([
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'connection',
+  'keep-alive',
+]);
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
@@ -33,7 +50,10 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       cache: 'no-store',
     });
   } catch {
-    return Response.json({ statusCode: 502, message: 'The service is temporarily unavailable. Please try again.' }, { status: 502 });
+    return Response.json(
+      { statusCode: 502, message: 'The service is temporarily unavailable. Please try again.' },
+      { status: 502 },
+    );
   }
   const out = new Headers();
   upstream.headers.forEach((v, k) => {

@@ -14,7 +14,16 @@ interface MerchantOrder {
   number: string;
   status: string;
   statusLabel: string;
-  items: { id: string; title: string; variantName: string; quantity: number; unitPriceMinor: number; lineTotalMinor: number; stockMode: string; leadTimeDays: number }[];
+  items: {
+    id: string;
+    title: string;
+    variantName: string;
+    quantity: number;
+    unitPriceMinor: number;
+    lineTotalMinor: number;
+    stockMode: string;
+    leadTimeDays: number;
+  }[];
   subtotalMinor: number;
   deliveryFeeMinor: number;
   totalMinor: number;
@@ -24,9 +33,36 @@ interface MerchantOrder {
   createdAt: string;
   cancellationReason: string | null;
   customer: { name: string; phone: string | null };
-  fulfilment: { method: string; status: string; collectionPoint: { name: string; address: string } | null; deliveryAddress: string | null; failedAttempts: number; pickupFromMerchant: boolean; assignments: { partner: string; rider: string | null; riderPhone: string | null; status: string; at: string }[] } | null;
-  settlement: { status: string; commissionMinor: number; merchantNetMinor: number; refundedMinor: number; mode: string; payoutReference: string | null } | null;
-  dispute: { id: string; status: string; reason: string; description: string; messages: { id: string; authorRole: string; body: string; createdAt: string }[] } | null;
+  fulfilment: {
+    method: string;
+    status: string;
+    collectionPoint: { name: string; address: string } | null;
+    deliveryAddress: string | null;
+    failedAttempts: number;
+    pickupFromMerchant: boolean;
+    assignments: {
+      partner: string;
+      rider: string | null;
+      riderPhone: string | null;
+      status: string;
+      at: string;
+    }[];
+  } | null;
+  settlement: {
+    status: string;
+    commissionMinor: number;
+    merchantNetMinor: number;
+    refundedMinor: number;
+    mode: string;
+    payoutReference: string | null;
+  } | null;
+  dispute: {
+    id: string;
+    status: string;
+    reason: string;
+    description: string;
+    messages: { id: string; authorRole: string; body: string; createdAt: string }[];
+  } | null;
   timeline: { label: string; note: string | null; at: string }[];
   payments: { testMode: boolean; status: string }[];
   actions: Record<string, boolean>;
@@ -66,7 +102,9 @@ export default function MerchantOrderPage() {
         <div className="row-between">
           <h2 className="mb-0">Order {o.number}</h2>
           <div className="row">
-            {o.payments.some((p) => p.testMode) && <span className="badge badge-test">TEST PAYMENT</span>}
+            {o.payments.some((p) => p.testMode) && (
+              <span className="badge badge-test">TEST PAYMENT</span>
+            )}
             <StatusBadge status={o.status} label={o.statusLabel} />
           </div>
         </div>
@@ -77,7 +115,10 @@ export default function MerchantOrderPage() {
           {o.items.map((i) => (
             <div key={i.id} className="summary-line small">
               <span>
-                {i.quantity} × {i.title} ({i.variantName}) {i.stockMode === 'MADE_TO_ORDER' && <span className="badge badge-amber">Made to order · {i.leadTimeDays}d</span>}
+                {i.quantity} × {i.title} ({i.variantName}){' '}
+                {i.stockMode === 'MADE_TO_ORDER' && (
+                  <span className="badge badge-amber">Made to order · {i.leadTimeDays}d</span>
+                )}
               </span>
               <span>{naira(i.lineTotalMinor)}</span>
             </div>
@@ -103,10 +144,15 @@ export default function MerchantOrderPage() {
                 </dd>
               </>
             )}
-            {(o.fulfilmentMethod === 'MERCHANT_DELIVERY' || o.fulfilmentMethod === 'THIRD_PARTY_DELIVERY') && (
+            {(o.fulfilmentMethod === 'MERCHANT_DELIVERY' ||
+              o.fulfilmentMethod === 'THIRD_PARTY_DELIVERY') && (
               <>
                 <dt>Deliver to</dt>
-                <dd>{o.fulfilment?.deliveryAddress ?? <span className="muted">Shown after payment</span>}</dd>
+                <dd>
+                  {o.fulfilment?.deliveryAddress ?? (
+                    <span className="muted">Shown after payment</span>
+                  )}
+                </dd>
               </>
             )}
             {o.fulfilment && o.fulfilment.failedAttempts > 0 && (
@@ -118,19 +164,28 @@ export default function MerchantOrderPage() {
           </dl>
           {o.fulfilment?.assignments.map((x, i) => (
             <div key={i} className="meta">
-              {x.partner} {x.rider && `· ${x.rider}`} {x.riderPhone && `(${x.riderPhone})`} — {x.status.toLowerCase()} {date(x.at, true)}
+              {x.partner} {x.rider && `· ${x.rider}`} {x.riderPhone && `(${x.riderPhone})`} —{' '}
+              {x.status.toLowerCase()} {date(x.at, true)}
             </div>
           ))}
-          {o.fulfilmentMethod === 'THIRD_PARTY_DELIVERY' && <p className="meta mb-0">KDCN operations will arrange a courier{o.fulfilment?.pickupFromMerchant ? ' to collect from you' : ''}. You can also record the dispatch yourself.</p>}
+          {o.fulfilmentMethod === 'THIRD_PARTY_DELIVERY' && (
+            <p className="meta mb-0">
+              KDCN operations will arrange a courier
+              {o.fulfilment?.pickupFromMerchant ? ' to collect from you' : ''}. You can also record
+              the dispatch yourself.
+            </p>
+          )}
         </section>
         {o.dispute && (
           <section className="card stack-sm">
             <h3>
-              Dispute: {o.dispute.reason.replace(/_/g, ' ')} <StatusBadge status={o.dispute.status} />
+              Dispute: {o.dispute.reason.replace(/_/g, ' ')}{' '}
+              <StatusBadge status={o.dispute.status} />
             </h3>
             {o.dispute.messages.map((mm) => (
               <div key={mm.id} className="card-flat small">
-                <strong>{mm.authorRole}</strong> <span className="meta">{date(mm.createdAt, true)}</span>
+                <strong>{mm.authorRole}</strong>{' '}
+                <span className="meta">{date(mm.createdAt, true)}</span>
                 <div style={{ whiteSpace: 'pre-line' }}>{mm.body}</div>
               </div>
             ))}
@@ -139,12 +194,21 @@ export default function MerchantOrderPage() {
                 className="stack-sm"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  setData(await api(`/merchant/${m.id}/disputes/${o.dispute!.id}/messages`, { body: { body: text } }));
+                  setData(
+                    await api(`/merchant/${m.id}/disputes/${o.dispute!.id}/messages`, {
+                      body: { body: text },
+                    }),
+                  );
                   setText('');
                 }}
               >
                 <label htmlFor="dmsg">Your response</label>
-                <textarea id="dmsg" required value={text} onChange={(e) => setText(e.target.value)} />
+                <textarea
+                  id="dmsg"
+                  required
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                />
                 <button className="btn btn-secondary btn-sm">Send to KDCN &amp; customer</button>
               </form>
             )}
@@ -156,8 +220,17 @@ export default function MerchantOrderPage() {
           <h3>Next step</h3>
           {a.canConfirm && (
             <>
-              <p className="small mb-0">Check you have every item, then confirm so the customer can pay{o.confirmationDeadline ? ` (by ${date(o.confirmationDeadline, true)})` : ''}.</p>
-              <button className="btn btn-block" disabled={busy} onClick={() => act('confirm', { note: text || undefined }, 'Confirmed — customer asked to pay')}>
+              <p className="small mb-0">
+                Check you have every item, then confirm so the customer can pay
+                {o.confirmationDeadline ? ` (by ${date(o.confirmationDeadline, true)})` : ''}.
+              </p>
+              <button
+                className="btn btn-block"
+                disabled={busy}
+                onClick={() =>
+                  act('confirm', { note: text || undefined }, 'Confirmed — customer asked to pay')
+                }
+              >
                 Confirm availability
               </button>
             </>
@@ -168,42 +241,103 @@ export default function MerchantOrderPage() {
             </button>
           )}
           {form === 'reject' && (
-            <form className="stack-sm" onSubmit={(e) => (e.preventDefault(), act('reject', { reason: text }, 'Order declined'))}>
+            <form
+              className="stack-sm"
+              onSubmit={(e) => (
+                e.preventDefault(), act('reject', { reason: text }, 'Order declined')
+              )}
+            >
               <label htmlFor="rr">Reason (shown to customer)</label>
-              <input id="rr" type="text" required minLength={3} value={text} onChange={(e) => setText(e.target.value)} />
+              <input
+                id="rr"
+                type="text"
+                required
+                minLength={3}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
               <button className="btn btn-danger btn-sm" disabled={busy}>
                 Decline order
               </button>
             </form>
           )}
           {a.canAccept && (
-            <button className="btn btn-block" disabled={busy} onClick={() => act('accept', undefined, 'Order accepted')}>
+            <button
+              className="btn btn-block"
+              disabled={busy}
+              onClick={() => act('accept', undefined, 'Order accepted')}
+            >
               Accept paid order
             </button>
           )}
           {a.canStartPreparing && (
-            <button className="btn btn-block" disabled={busy} onClick={() => act('preparing', undefined, 'Marked as preparing')}>
+            <button
+              className="btn btn-block"
+              disabled={busy}
+              onClick={() => act('preparing', undefined, 'Marked as preparing')}
+            >
               Start preparing
             </button>
           )}
           {a.canMarkReady && (
-            <button className="btn btn-block" disabled={busy} onClick={() => act('ready', undefined, 'Customer notified that the order is ready')}>
+            <button
+              className="btn btn-block"
+              disabled={busy}
+              onClick={() => act('ready', undefined, 'Customer notified that the order is ready')}
+            >
               Ready for collection
             </button>
           )}
           {a.canDispatch && (
-            <form className="stack-sm" onSubmit={(e) => (e.preventDefault(), act('dispatch', { partnerName: dispatch.partnerName, riderName: dispatch.riderName || undefined, riderPhone: dispatch.riderPhone || undefined }, 'Dispatched'))}>
+            <form
+              className="stack-sm"
+              onSubmit={(e) => (
+                e.preventDefault(),
+                act(
+                  'dispatch',
+                  {
+                    partnerName: dispatch.partnerName,
+                    riderName: dispatch.riderName || undefined,
+                    riderPhone: dispatch.riderPhone || undefined,
+                  },
+                  'Dispatched',
+                )
+              )}
+            >
               <label htmlFor="pn">Delivered by</label>
-              <input id="pn" type="text" required placeholder="Own rider / courier name" value={dispatch.partnerName} onChange={(e) => setDispatch({ ...dispatch, partnerName: e.target.value })} />
-              <input aria-label="Rider name" type="text" placeholder="Rider name (optional)" value={dispatch.riderName} onChange={(e) => setDispatch({ ...dispatch, riderName: e.target.value })} />
-              <input aria-label="Rider phone" type="tel" placeholder="Rider phone (optional)" value={dispatch.riderPhone} onChange={(e) => setDispatch({ ...dispatch, riderPhone: e.target.value })} />
+              <input
+                id="pn"
+                type="text"
+                required
+                placeholder="Own rider / courier name"
+                value={dispatch.partnerName}
+                onChange={(e) => setDispatch({ ...dispatch, partnerName: e.target.value })}
+              />
+              <input
+                aria-label="Rider name"
+                type="text"
+                placeholder="Rider name (optional)"
+                value={dispatch.riderName}
+                onChange={(e) => setDispatch({ ...dispatch, riderName: e.target.value })}
+              />
+              <input
+                aria-label="Rider phone"
+                type="tel"
+                placeholder="Rider phone (optional)"
+                value={dispatch.riderPhone}
+                onChange={(e) => setDispatch({ ...dispatch, riderPhone: e.target.value })}
+              />
               <button className="btn btn-block" disabled={busy}>
                 Mark dispatched
               </button>
             </form>
           )}
           {a.canMarkDelivered && (
-            <button className="btn btn-block" disabled={busy} onClick={() => act('delivered', {}, 'Marked delivered')}>
+            <button
+              className="btn btn-block"
+              disabled={busy}
+              onClick={() => act('delivered', {}, 'Marked delivered')}
+            >
               Mark delivered
             </button>
           )}
@@ -213,32 +347,75 @@ export default function MerchantOrderPage() {
             </button>
           )}
           {form === 'failed' && (
-            <form className="stack-sm" onSubmit={(e) => (e.preventDefault(), act('delivery-failed', { note: text }, 'Failed attempt recorded'))}>
+            <form
+              className="stack-sm"
+              onSubmit={(e) => (
+                e.preventDefault(),
+                act('delivery-failed', { note: text }, 'Failed attempt recorded')
+              )}
+            >
               <label htmlFor="fn">What happened?</label>
-              <input id="fn" type="text" required minLength={3} value={text} onChange={(e) => setText(e.target.value)} />
+              <input
+                id="fn"
+                type="text"
+                required
+                minLength={3}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
               <button className="btn btn-secondary btn-sm" disabled={busy}>
                 Record failed attempt
               </button>
             </form>
           )}
           {a.canVerifyCollection && (
-            <form className="stack-sm" onSubmit={(e) => (e.preventDefault(), act('collected', { code: text }, 'Collection confirmed'))}>
+            <form
+              className="stack-sm"
+              onSubmit={(e) => (
+                e.preventDefault(), act('collected', { code: text }, 'Collection confirmed')
+              )}
+            >
               <label htmlFor="cc">Customer&apos;s 6-digit collection code</label>
-              <input id="cc" inputMode="numeric" pattern="\d{6}" maxLength={6} required value={text} onChange={(e) => setText(e.target.value)} />
+              <input
+                id="cc"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                required
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
               <button className="btn btn-block" disabled={busy}>
                 Confirm handover
               </button>
             </form>
           )}
           {a.canCancel && m.myRole !== 'STAFF' && form !== 'cancel' && (
-            <button className="btn btn-link" style={{ color: 'var(--red-700)' }} onClick={() => setForm('cancel')}>
+            <button
+              className="btn btn-link"
+              style={{ color: 'var(--red-700)' }}
+              onClick={() => setForm('cancel')}
+            >
               Cancel &amp; refund customer
             </button>
           )}
           {form === 'cancel' && (
-            <form className="stack-sm" onSubmit={(e) => (e.preventDefault(), act('cancel', { reason: text }, 'Cancelled — full refund started'))}>
+            <form
+              className="stack-sm"
+              onSubmit={(e) => (
+                e.preventDefault(),
+                act('cancel', { reason: text }, 'Cancelled — full refund started')
+              )}
+            >
               <label htmlFor="cr">Reason</label>
-              <input id="cr" type="text" required minLength={3} value={text} onChange={(e) => setText(e.target.value)} />
+              <input
+                id="cr"
+                type="text"
+                required
+                minLength={3}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
               <button className="btn btn-danger btn-sm" disabled={busy}>
                 Cancel with full refund
               </button>
@@ -268,7 +445,10 @@ export default function MerchantOrderPage() {
               <span>{naira(o.settlement.merchantNetMinor)}</span>
             </div>
             <div>
-              <StatusBadge status={o.settlement.status} /> {o.settlement.payoutReference && <span className="meta">Ref {o.settlement.payoutReference}</span>}
+              <StatusBadge status={o.settlement.status} />{' '}
+              {o.settlement.payoutReference && (
+                <span className="meta">Ref {o.settlement.payoutReference}</span>
+              )}
             </div>
           </section>
         )}

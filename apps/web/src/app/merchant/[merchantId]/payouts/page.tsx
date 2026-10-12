@@ -6,7 +6,20 @@ import { date, naira } from '@/lib/format';
 import { useApi } from '@/lib/hooks';
 
 interface Settlements {
-  items: { id: string; orderNumber: string; paidAt: string | null; grossMinor: number; commissionMinor: number; merchantDeliveryMinor: number; refundedMinor: number; merchantNetMinor: number; status: string; mode: string; payoutReference: string | null; settledAt: string | null }[];
+  items: {
+    id: string;
+    orderNumber: string;
+    paidAt: string | null;
+    grossMinor: number;
+    commissionMinor: number;
+    merchantDeliveryMinor: number;
+    refundedMinor: number;
+    merchantNetMinor: number;
+    status: string;
+    mode: string;
+    payoutReference: string | null;
+    settledAt: string | null;
+  }[];
   totalsByStatus: { status: string; merchantNetMinor: number }[];
 }
 
@@ -20,11 +33,15 @@ const STATUS_HELP: Record<string, string> = {
 
 export default function PayoutsPage() {
   const { m } = useMerchant();
-  const { data, loading, error } = useApi<Settlements>(m.myRole === 'STAFF' ? null : `/merchant/${m.id}/settlements`);
-  if (m.myRole === 'STAFF') return <Alert tone="info">Only owners and managers can view payouts.</Alert>;
+  const { data, loading, error } = useApi<Settlements>(
+    m.myRole === 'STAFF' ? null : `/merchant/${m.id}/settlements`,
+  );
+  if (m.myRole === 'STAFF')
+    return <Alert tone="info">Only owners and managers can view payouts.</Alert>;
   if (loading) return <Loading />;
   if (error) return <Alert tone="error">{error.message}</Alert>;
-  const total = (s: string) => data?.totalsByStatus.find((t) => t.status === s)?.merchantNetMinor ?? 0;
+  const total = (s: string) =>
+    data?.totalsByStatus.find((t) => t.status === s)?.merchantNetMinor ?? 0;
   return (
     <div className="stack">
       <div className="stat-grid">
@@ -46,8 +63,11 @@ export default function PayoutsPage() {
         </div>
       </div>
       <Alert tone="info">
-        Payout account: {m.payout ? `${m.payout.accountName} ${m.payout.accountNumberMasked}` : 'not set'} ·{' '}
-        {m.settlementMode === 'PROVIDER_SPLIT' ? 'Your share is settled directly to your bank by the payment provider.' : 'KDCN finance transfers amounts due after reconciliation and records the transfer reference here.'}
+        Payout account:{' '}
+        {m.payout ? `${m.payout.accountName} ${m.payout.accountNumberMasked}` : 'not set'} ·{' '}
+        {m.settlementMode === 'PROVIDER_SPLIT'
+          ? 'Your share is settled directly to your bank by the payment provider.'
+          : 'KDCN finance transfers amounts due after reconciliation and records the transfer reference here.'}
       </Alert>
       {!data?.items.length ? (
         <Empty title="No earnings yet">Earnings appear here once customers pay for orders.</Empty>
@@ -81,7 +101,11 @@ export default function PayoutsPage() {
                   </td>
                   <td>
                     <StatusBadge status={s.status} />
-                    <div className="meta">{s.payoutReference ? `Ref ${s.payoutReference} · ${date(s.settledAt)}` : STATUS_HELP[s.status]}</div>
+                    <div className="meta">
+                      {s.payoutReference
+                        ? `Ref ${s.payoutReference} · ${date(s.settledAt)}`
+                        : STATUS_HELP[s.status]}
+                    </div>
                   </td>
                 </tr>
               ))}

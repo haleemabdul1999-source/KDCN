@@ -23,7 +23,21 @@ interface City {
   areas: { id: string; name: string }[];
 }
 
-const KEYS = ['q', 'category', 'market', 'merchant', 'city', 'area', 'minPrice', 'maxPrice', 'availability', 'fulfilment', 'verified', 'merchantType', 'sort'] as const;
+const KEYS = [
+  'q',
+  'category',
+  'market',
+  'merchant',
+  'city',
+  'area',
+  'minPrice',
+  'maxPrice',
+  'availability',
+  'fulfilment',
+  'verified',
+  'merchantType',
+  'sort',
+] as const;
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
@@ -33,7 +47,12 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const qs = new URLSearchParams();
-  for (const k of KEYS) if (sp[k]) qs.set(k, k === 'minPrice' || k === 'maxPrice' ? String(Math.round(Number(sp[k]) * 100)) : sp[k]!);
+  for (const k of KEYS)
+    if (sp[k])
+      qs.set(
+        k,
+        k === 'minPrice' || k === 'maxPrice' ? String(Math.round(Number(sp[k]) * 100)) : sp[k]!,
+      );
   qs.set('page', sp.page ?? '1');
   const [results, categories, markets, cities] = await Promise.all([
     serverGet<Paged<ListingCard>>(`/search?${qs.toString()}`, 0).catch(() => null),
@@ -116,11 +135,23 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'nowrap' }}>
             <div className="field" style={{ flex: 1 }}>
               <label htmlFor="f-min">Min ₦</label>
-              <input id="f-min" name="minPrice" type="number" min={0} defaultValue={sp.minPrice ?? ''} />
+              <input
+                id="f-min"
+                name="minPrice"
+                type="number"
+                min={0}
+                defaultValue={sp.minPrice ?? ''}
+              />
             </div>
             <div className="field" style={{ flex: 1 }}>
               <label htmlFor="f-max">Max ₦</label>
-              <input id="f-max" name="maxPrice" type="number" min={0} defaultValue={sp.maxPrice ?? ''} />
+              <input
+                id="f-max"
+                name="maxPrice"
+                type="number"
+                min={0}
+                defaultValue={sp.maxPrice ?? ''}
+              />
             </div>
           </div>
           <div className="field">
@@ -141,7 +172,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             </select>
           </div>
           <label className="checkbox field">
-            <input type="checkbox" name="verified" value="true" defaultChecked={sp.verified === 'true'} /> Identity-verified sellers only
+            <input
+              type="checkbox"
+              name="verified"
+              value="true"
+              defaultChecked={sp.verified === 'true'}
+            />{' '}
+            Identity-verified sellers only
           </label>
           <div className="field">
             <label htmlFor="f-sort">Sort by</label>
@@ -166,10 +203,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             {sp.q ? `Results for “${sp.q}”` : 'Browse products'}
             {marketName ? ` in ${marketName}` : ''}
           </h1>
-          {results && <span className="muted small">{results.total} result{results.total === 1 ? '' : 's'}</span>}
+          {results && (
+            <span className="muted small">
+              {results.total} result{results.total === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
         {!results ? (
-          <div className="alert alert-error">Search is temporarily unavailable. Please try again.</div>
+          <div className="alert alert-error">
+            Search is temporarily unavailable. Please try again.
+          </div>
         ) : results.items.length === 0 ? (
           <div className="empty">
             <h3>No products found</h3>
@@ -181,12 +224,18 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         ) : (
           <>
             <ProductGrid items={results.items} />
-            <Pagination page={results.page} pageSize={results.pageSize} total={results.total} href={href} />
+            <Pagination
+              page={results.page}
+              pageSize={results.pageSize}
+              total={results.total}
+              href={href}
+            />
           </>
         )}
         {sp.q && results && <SearchTracker query={sp.q} count={results.total} />}
         <p className="muted small" style={{ marginTop: 16 }}>
-          Results are ranked by relevance and availability. KDCN does not currently sell placement in search results.
+          Results are ranked by relevance and availability. KDCN does not currently sell placement
+          in search results.
         </p>
       </section>
     </div>

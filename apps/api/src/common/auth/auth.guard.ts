@@ -46,15 +46,27 @@ export class AuthGuard implements CanActivate {
     if (isPublic) return true;
     if (!req.auth) throw new UnauthorizedException('Sign in required');
 
-    const staffRoles = this.reflector.getAllAndOverride<StaffRole[] | undefined>(STAFF_ROLES, targets);
+    const staffRoles = this.reflector.getAllAndOverride<StaffRole[] | undefined>(
+      STAFF_ROLES,
+      targets,
+    );
     if (staffRoles) {
       const roles = req.auth.user.staffRoles;
       const allowed =
-        roles.includes(StaffRole.SUPER_ADMIN) || staffRoles.length === 0 || staffRoles.some((r) => roles.includes(r));
-      if (roles.length === 0 || !allowed) throw new ForbiddenException('Insufficient staff permissions');
-      const allowUnverified = this.reflector.getAllAndOverride<boolean>(ALLOW_UNVERIFIED_MFA, targets);
+        roles.includes(StaffRole.SUPER_ADMIN) ||
+        staffRoles.length === 0 ||
+        staffRoles.some((r) => roles.includes(r));
+      if (roles.length === 0 || !allowed)
+        throw new ForbiddenException('Insufficient staff permissions');
+      const allowUnverified = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_UNVERIFIED_MFA,
+        targets,
+      );
       if (!allowUnverified && !req.auth.mfaVerified) {
-        throw new ForbiddenException({ message: 'Multi-factor authentication required', code: 'MFA_REQUIRED' });
+        throw new ForbiddenException({
+          message: 'Multi-factor authentication required',
+          code: 'MFA_REQUIRED',
+        });
       }
     }
     return true;

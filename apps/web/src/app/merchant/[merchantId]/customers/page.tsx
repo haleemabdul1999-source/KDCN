@@ -45,9 +45,15 @@ export default function CustomersPage() {
         <h2>Disputes</h2>
         {disputes.data?.length === 0 && <p className="muted small">No disputes. 🎉</p>}
         {disputes.data?.map((d) => (
-          <Link key={d.id} href={`${base}/orders/${d.order.id}`} className="card-flat row-between" style={{ color: 'inherit' }}>
+          <Link
+            key={d.id}
+            href={`${base}/orders/${d.order.id}`}
+            className="card-flat row-between"
+            style={{ color: 'inherit' }}
+          >
             <span>
-              Order {d.order.number} — {d.reason.replace(/_/g, ' ')} <span className="meta">{date(d.createdAt)}</span>
+              Order {d.order.number} — {d.reason.replace(/_/g, ' ')}{' '}
+              <span className="meta">{date(d.createdAt)}</span>
               {d.resolution && <div className="meta">Resolution: {d.resolution}</div>}
             </span>
             <StatusBadge status={d.status} />
@@ -75,7 +81,14 @@ export default function CustomersPage() {
                   await enquiries.reload();
                 }}
               >
-                <input aria-label="Reply" type="text" required value={drafts[e.id] ?? ''} onChange={(ev) => setDrafts({ ...drafts, [e.id]: ev.target.value })} style={{ flex: 1 }} />
+                <input
+                  aria-label="Reply"
+                  type="text"
+                  required
+                  value={drafts[e.id] ?? ''}
+                  onChange={(ev) => setDrafts({ ...drafts, [e.id]: ev.target.value })}
+                  style={{ flex: 1 }}
+                />
                 <button className="btn btn-sm">Reply</button>
               </form>
             )}
@@ -84,12 +97,19 @@ export default function CustomersPage() {
       </section>
       <section className="card stack-sm">
         <h2>Reviews</h2>
-        <p className="meta mb-0">Reviews come only from customers who completed an order. You can respond once; reviews can&apos;t be edited or removed by sellers.</p>
+        <p className="meta mb-0">
+          Reviews come only from customers who completed an order. You can respond once; reviews
+          can&apos;t be edited or removed by sellers.
+        </p>
         {reviews.data?.length === 0 && <p className="muted small">No reviews yet.</p>}
         {reviews.data?.map((r) => (
           <div key={r.id} className="card-flat small stack-sm">
             <div>
-              <Stars value={r.rating} /> <span className="meta">Order {r.order.number} · {date(r.createdAt)}</span> {r.status !== 'PUBLISHED' && <StatusBadge status={r.status} />}
+              <Stars value={r.rating} />{' '}
+              <span className="meta">
+                Order {r.order.number} · {date(r.createdAt)}
+              </span>{' '}
+              {r.status !== 'PUBLISHED' && <StatusBadge status={r.status} />}
             </div>
             {r.body && <div>{r.body}</div>}
             {r.merchantResponse ? (
@@ -100,11 +120,21 @@ export default function CustomersPage() {
                   className="row"
                   onSubmit={async (ev) => {
                     ev.preventDefault();
-                    await api(`${base}/reviews/${r.id}/respond`, { body: { response: drafts[r.id] } });
+                    await api(`${base}/reviews/${r.id}/respond`, {
+                      body: { response: drafts[r.id] },
+                    });
                     await reviews.reload();
                   }}
                 >
-                  <input aria-label="Response" type="text" required minLength={2} value={drafts[r.id] ?? ''} onChange={(ev) => setDrafts({ ...drafts, [r.id]: ev.target.value })} style={{ flex: 1 }} />
+                  <input
+                    aria-label="Response"
+                    type="text"
+                    required
+                    minLength={2}
+                    value={drafts[r.id] ?? ''}
+                    onChange={(ev) => setDrafts({ ...drafts, [r.id]: ev.target.value })}
+                    style={{ flex: 1 }}
+                  />
                   <button className="btn btn-sm btn-secondary">Respond</button>
                 </form>
               )

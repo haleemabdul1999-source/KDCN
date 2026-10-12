@@ -19,7 +19,9 @@ const ITEM_INCLUDE = {
       listing: {
         include: {
           product: { include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } } },
-          merchant: { select: { id: true, slug: true, displayName: true, type: true, status: true } },
+          merchant: {
+            select: { id: true, slug: true, displayName: true, type: true, status: true },
+          },
         },
       },
     },
@@ -33,8 +35,13 @@ export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findCart(owner: CartOwner) {
-    if (owner.userId) return this.prisma.cart.findFirst({ where: { userId: owner.userId }, orderBy: { createdAt: 'asc' } });
-    if (owner.guestToken) return this.prisma.cart.findUnique({ where: { guestTokenHash: sha256(owner.guestToken) } });
+    if (owner.userId)
+      return this.prisma.cart.findFirst({
+        where: { userId: owner.userId },
+        orderBy: { createdAt: 'asc' },
+      });
+    if (owner.guestToken)
+      return this.prisma.cart.findUnique({ where: { guestTokenHash: sha256(owner.guestToken) } });
     return null;
   }
 
@@ -57,7 +64,9 @@ export class CartService {
       include: { listing: true, inventory: true },
     });
     if (!lv) throw new NotFoundException('This item is no longer available');
-    const existing = await this.prisma.cartItem.findUnique({ where: { cartId_listingVariantId: { cartId, listingVariantId } } });
+    const existing = await this.prisma.cartItem.findUnique({
+      where: { cartId_listingVariantId: { cartId, listingVariantId } },
+    });
     const newQty = (existing?.quantity ?? 0) + quantity;
     this.checkQuantity(lv.listing, newQty);
     const avail = availabilityFor(lv.listing.stockMode, lv.listing.leadTimeDays, lv.inventory);
@@ -73,7 +82,10 @@ export class CartService {
   }
 
   async setQuantity(cartId: string, itemId: string, quantity: number) {
-    const item = await this.prisma.cartItem.findFirst({ where: { id: itemId, cartId }, include: { listingVariant: { include: { listing: true } } } });
+    const item = await this.prisma.cartItem.findFirst({
+      where: { id: itemId, cartId },
+      include: { listingVariant: { include: { listing: true } } },
+    });
     if (!item) throw new NotFoundException('Cart item not found');
     this.checkQuantity(item.listingVariant.listing, quantity);
     await this.prisma.cartItem.update({ where: { id: item.id }, data: { quantity } });
@@ -84,26 +96,49 @@ export class CartService {
   }
 
   private checkQuantity(listing: { minOrderQty: number; maxOrderQty: number }, qty: number) {
-    if (qty < listing.minOrderQty) throw new BadRequestException(`Minimum order quantity is ${listing.minOrderQty}`);
-    if (qty > listing.maxOrderQty) throw new BadRequestException(`Maximum order quantity is ${listing.maxOrderQty}`);
+    if (qty < listing.minOrderQty)
+      throw new BadRequestException(`Minimum order quantity is ${listing.minOrderQty}`);
+    if (qty > listing.maxOrderQty)
+      throw new BadRequestException(`Maximum order quantity is ${listing.maxOrderQty}`);
   }
 
   /** Cart view grouped by merchant, with live price and availability checks. */
   async view(cartId: string | undefined) {
     if (!cartId) return { groups: [], itemCount: 0 };
-    const items = await this.prisma.cartItem.findMany({ where: { cartId }, include: ITEM_INCLUDE, orderBy: { addedAt: 'asc' } });
-    const groups = new Map<string, { merchant: { id: string; slug: string; displayName: string; type: string }; items: unknown[]; subtotalMinor: number; checkoutable: boolean; requiresConfirmation: boolean }>();
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId },
+      include: ITEM_INCLUDE,
+      orderBy: { addedAt: 'asc' },
+    });
+    const groups = new Map<
+      string,
+      {
+        merchant: { id: string; slug: string; displayName: string; type: string };
+        items: unknown[];
+        subtotalMinor: number;
+        checkoutable: boolean;
+        requiresConfirmation: boolean;
+      }
+    >();
     for (const it of items) {
       const lv = it.listingVariant;
       const l = lv.listing;
       const availability = availabilityFor(l.stockMode, l.leadTimeDays, lv.inventory);
       const issues: string[] = [];
-      if (l.status !== 'ACTIVE' || l.merchant.status !== 'APPROVED' || !lv.active) issues.push('No longer available');
+      if (l.status !== 'ACTIVE' || l.merchant.status !== 'APPROVED' || !lv.active)
+        issues.push('No longer available');
       else if (!availability.purchasable) issues.push('Out of stock');
-      else if (availability.quantityHint !== undefined && it.quantity > availability.quantityHint) issues.push(`Only ${availability.quantityHint} available`);
-      if (it.quantity < l.minOrderQty || it.quantity > l.maxOrderQty) issues.push(`Quantity must be between ${l.minOrderQty} and ${l.maxOrderQty}`);
+      else if (availability.quantityHint !== undefined && it.quantity > availability.quantityHint)
+        issues.push(`Only ${availability.quantityHint} available`);
+      if (it.quantity < l.minOrderQty || it.quantity > l.maxOrderQty)
+        issues.push(`Quantity must be between ${l.minOrderQty} and ${l.maxOrderQty}`);
       const g = groups.get(l.merchant.id) ?? {
-        merchant: { id: l.merchant.id, slug: l.merchant.slug, displayName: l.merchant.displayName, type: l.merchant.type },
+        merchant: {
+          id: l.merchant.id,
+          slug: l.merchant.slug,
+          displayName: l.merchant.displayName,
+          type: l.merchant.type,
+        },
         items: [],
         subtotalMinor: 0,
         checkoutable: true,
@@ -134,7 +169,10 @@ export class CartService {
 
   /** On sign-in, move guest cart lines into the user's cart. */
   async mergeGuestCart(guestToken: string, userId: string) {
-    const guest = await this.prisma.cart.findUnique({ where: { guestTokenHash: sha256(guestToken) }, include: { items: true } });
+    const guest = await this.prisma.cart.findUnique({
+      where: { guestTokenHash: sha256(guestToken) },
+      include: { items: true },
+    });
     if (!guest || guest.items.length === 0) return;
     const { cartId } = await this.ensureCart({ userId });
     for (const item of guest.items) {

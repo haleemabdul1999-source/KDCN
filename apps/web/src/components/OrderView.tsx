@@ -12,7 +12,15 @@ export interface CustomerOrder {
   status: string;
   statusLabel: string;
   merchant: { slug: string; displayName: string; contactPhone?: string };
-  items: { id: string; title: string; variantName: string; unitPriceMinor: number; quantity: number; lineTotalMinor: number; leadTimeDays: number }[];
+  items: {
+    id: string;
+    title: string;
+    variantName: string;
+    unitPriceMinor: number;
+    quantity: number;
+    lineTotalMinor: number;
+    leadTimeDays: number;
+  }[];
   subtotalMinor: number;
   deliveryFeeMinor: number;
   serviceFeeMinor: number;
@@ -23,9 +31,24 @@ export interface CustomerOrder {
   confirmationDeadline: string | null;
   paymentDeadline: string | null;
   createdAt: string;
-  terms: { platform?: string; cancellationPolicy?: string; returnPolicy?: string; fulfilment?: { location?: { label: string; address: string }; collectionPoint?: { name: string; address: string } } };
+  terms: {
+    platform?: string;
+    cancellationPolicy?: string;
+    returnPolicy?: string;
+    fulfilment?: {
+      location?: { label: string; address: string };
+      collectionPoint?: { name: string; address: string };
+    };
+  };
   timeline: { status: string; label: string; note: string | null; at: string }[];
-  payments: { reference: string; status: string; amountMinor: number; testMode: boolean; isDuplicate: boolean; failureReason: string | null }[];
+  payments: {
+    reference: string;
+    status: string;
+    amountMinor: number;
+    testMode: boolean;
+    isDuplicate: boolean;
+    failureReason: string | null;
+  }[];
   refunds: { id: string; amountMinor: number; status: string; reason: string }[];
   refundedMinor: number;
   fulfilment: {
@@ -37,9 +60,21 @@ export interface CustomerOrder {
     rider: { partner: string; name: string | null; phone: string | null } | null;
     failedAttempts: number;
   } | null;
-  dispute: { id: string; status: string; reason: string; resolution: string | null; messages: { id: string; authorRole: string; body: string; createdAt: string }[] } | null;
+  dispute: {
+    id: string;
+    status: string;
+    reason: string;
+    resolution: string | null;
+    messages: { id: string; authorRole: string; body: string; createdAt: string }[];
+  } | null;
   review: { rating: number; body: string; merchantResponse: string | null } | null;
-  actions: { canPay: boolean; canCancel: boolean; canConfirmReceipt: boolean; canDispute: boolean; canReview: boolean };
+  actions: {
+    canPay: boolean;
+    canCancel: boolean;
+    canConfirmReceipt: boolean;
+    canDispute: boolean;
+    canReview: boolean;
+  };
 }
 
 export function OrderSummary({ o }: { o: CustomerOrder }) {
@@ -80,12 +115,17 @@ export function OrderSummary({ o }: { o: CustomerOrder }) {
   );
 }
 
-export function Timeline({ events }: { events: { label: string; note: string | null; at: string }[] }) {
+export function Timeline({
+  events,
+}: {
+  events: { label: string; note: string | null; at: string }[];
+}) {
   return (
     <ol className="timeline">
       {events.map((e, i) => (
         <li key={i}>
-          <strong className="small">{e.label}</strong> <span className="meta">{date(e.at, true)}</span>
+          <strong className="small">{e.label}</strong>{' '}
+          <span className="meta">{date(e.at, true)}</span>
           {e.note && <div className="meta">{e.note}</div>}
         </li>
       ))}
@@ -93,7 +133,13 @@ export function Timeline({ events }: { events: { label: string; note: string | n
   );
 }
 
-export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChange: (o: CustomerOrder) => void }) {
+export function CustomerOrderActions({
+  o,
+  onChange,
+}: {
+  o: CustomerOrder;
+  onChange: (o: CustomerOrder) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'none' | 'cancel' | 'dispute' | 'review'>('none');
@@ -124,7 +170,9 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
           disabled={busy}
           onClick={() =>
             run(async () => {
-              const r = await api<{ authorizationUrl: string }>(`/orders/${o.id}/pay`, { method: 'POST' });
+              const r = await api<{ authorizationUrl: string }>(`/orders/${o.id}/pay`, {
+                method: 'POST',
+              });
               window.location.href = r.authorizationUrl;
             })
           }
@@ -133,7 +181,15 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
         </button>
       )}
       {o.actions.canConfirmReceipt && (
-        <button className="btn btn-block" disabled={busy} onClick={() => run(async () => onChange(await api(`/orders/${o.id}/confirm-receipt`, { method: 'POST' })))}>
+        <button
+          className="btn btn-block"
+          disabled={busy}
+          onClick={() =>
+            run(async () =>
+              onChange(await api(`/orders/${o.id}/confirm-receipt`, { method: 'POST' })),
+            )
+          }
+        >
           I&apos;ve received my order
         </button>
       )}
@@ -143,7 +199,15 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
         </button>
       )}
       {mode === 'review' && (
-        <form className="card-flat stack-sm" onSubmit={(e) => (e.preventDefault(), run(async () => onChange(await api(`/orders/${o.id}/review`, { body: { rating, body: text } }))))}>
+        <form
+          className="card-flat stack-sm"
+          onSubmit={(e) => (
+            e.preventDefault(),
+            run(async () =>
+              onChange(await api(`/orders/${o.id}/review`, { body: { rating, body: text } })),
+            )
+          )}
+        >
           <label htmlFor="rating">Rating</label>
           <select id="rating" value={rating} onChange={(e) => setRating(Number(e.target.value))}>
             {[5, 4, 3, 2, 1].map((r) => (
@@ -153,7 +217,12 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
             ))}
           </select>
           <label htmlFor="rev">Your review</label>
-          <textarea id="rev" value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} />
+          <textarea
+            id="rev"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={2000}
+          />
           <button className="btn btn-sm" disabled={busy}>
             Submit review
           </button>
@@ -165,10 +234,28 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
         </button>
       )}
       {mode === 'cancel' && (
-        <form className="card-flat stack-sm" onSubmit={(e) => (e.preventDefault(), run(async () => onChange(await api(`/orders/${o.id}/cancel`, { body: { reason: text } }))))}>
+        <form
+          className="card-flat stack-sm"
+          onSubmit={(e) => (
+            e.preventDefault(),
+            run(async () =>
+              onChange(await api(`/orders/${o.id}/cancel`, { body: { reason: text } })),
+            )
+          )}
+        >
           <label htmlFor="cr">Reason (optional)</label>
-          <input id="cr" type="text" value={text} onChange={(e) => setText(e.target.value)} maxLength={300} />
-          <p className="small mb-0">{o.status === 'PAID' ? 'You will receive a full refund to your original payment method.' : 'You have not been charged.'}</p>
+          <input
+            id="cr"
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={300}
+          />
+          <p className="small mb-0">
+            {o.status === 'PAID'
+              ? 'You will receive a full refund to your original payment method.'
+              : 'You have not been charged.'}
+          </p>
           <div className="row">
             <button className="btn btn-danger btn-sm" disabled={busy}>
               Confirm cancellation
@@ -185,7 +272,17 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
         </button>
       )}
       {mode === 'dispute' && (
-        <form className="card-flat stack-sm" onSubmit={(e) => (e.preventDefault(), run(async () => onChange(await api(`/orders/${o.id}/disputes`, { body: { reason, description: text } }))))}>
+        <form
+          className="card-flat stack-sm"
+          onSubmit={(e) => (
+            e.preventDefault(),
+            run(async () =>
+              onChange(
+                await api(`/orders/${o.id}/disputes`, { body: { reason, description: text } }),
+              ),
+            )
+          )}
+        >
           <label htmlFor="dr">What went wrong?</label>
           <select id="dr" value={reason} onChange={(e) => setReason(e.target.value)}>
             <option value="not_received">I didn&apos;t receive it</option>
@@ -196,8 +293,16 @@ export function CustomerOrderActions({ o, onChange }: { o: CustomerOrder; onChan
             <option value="other">Something else</option>
           </select>
           <label htmlFor="dd">Describe the problem</label>
-          <textarea id="dd" value={text} onChange={(e) => setText(e.target.value)} minLength={10} required />
-          <p className="small muted mb-0">The seller is notified and KDCN support reviews every dispute.</p>
+          <textarea
+            id="dd"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            minLength={10}
+            required
+          />
+          <p className="small muted mb-0">
+            The seller is notified and KDCN support reviews every dispute.
+          </p>
           <button className="btn btn-sm" disabled={busy}>
             Open dispute
           </button>
@@ -214,7 +319,8 @@ export function OrderHeader({ o }: { o: CustomerOrder }) {
       <div>
         <h1 style={{ marginBottom: 4 }}>Order {o.number}</h1>
         <div className="meta">
-          From <Link href={`/s/${o.merchant.slug}`}>{o.merchant.displayName}</Link> · placed {date(o.createdAt, true)}
+          From <Link href={`/s/${o.merchant.slug}`}>{o.merchant.displayName}</Link> · placed{' '}
+          {date(o.createdAt, true)}
         </div>
       </div>
       <div className="row">

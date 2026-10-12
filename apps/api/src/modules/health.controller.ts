@@ -22,11 +22,19 @@ export class HealthController {
   async ready() {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-      const pending = await this.prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM _prisma_migrations WHERE finished_at IS NULL`;
+      const pending = await this.prisma.$queryRaw<
+        { n: bigint }[]
+      >`SELECT count(*) AS n FROM _prisma_migrations WHERE finished_at IS NULL`;
       if (Number(pending[0].n) > 0) throw new Error('migrations pending');
     } catch {
       throw new ServiceUnavailableException({ status: 'unavailable' });
     }
-    return { status: 'ready', paymentProvider: env().PAYMENT_PROVIDER, paymentTestMode: env().PAYMENT_PROVIDER === 'mock' || (env().PAYSTACK_SECRET_KEY ?? '').startsWith('sk_test_') };
+    return {
+      status: 'ready',
+      paymentProvider: env().PAYMENT_PROVIDER,
+      paymentTestMode:
+        env().PAYMENT_PROVIDER === 'mock' ||
+        (env().PAYSTACK_SECRET_KEY ?? '').startsWith('sk_test_'),
+    };
   }
 }

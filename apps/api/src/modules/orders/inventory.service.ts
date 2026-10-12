@@ -23,7 +23,11 @@ export class InventoryService {
         UPDATE inventory SET reserved = reserved + ${l.quantity}, "updatedAt" = now()
         WHERE "listingVariantId" = ${l.listingVariantId} AND quantity - reserved >= ${l.quantity}`;
       if (n !== 1) {
-        throw new ConflictException({ message: `${l.title ?? 'An item'} is no longer available in the requested quantity`, code: 'OUT_OF_STOCK', listingVariantId: l.listingVariantId });
+        throw new ConflictException({
+          message: `${l.title ?? 'An item'} is no longer available in the requested quantity`,
+          code: 'OUT_OF_STOCK',
+          listingVariantId: l.listingVariantId,
+        });
       }
     }
     return tracked.length > 0;

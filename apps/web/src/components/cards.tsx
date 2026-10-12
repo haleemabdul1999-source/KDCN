@@ -7,7 +7,20 @@ export function ProductCard({ item }: { item: ListingCard }) {
   return (
     <Link href={`/p/${item.slug}`} className="product-card" data-testid="product-card">
       <div className="thumb">
-        {item.imageUrl ? <img src={item.imageUrl} alt={item.imageAlt} loading="lazy" decoding="async" width={300} height={300} /> : <span className="thumb-placeholder" aria-hidden="true">{initials(item.title)}</span>}
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.imageAlt}
+            loading="lazy"
+            decoding="async"
+            width={300}
+            height={300}
+          />
+        ) : (
+          <span className="thumb-placeholder" aria-hidden="true">
+            {initials(item.title)}
+          </span>
+        )}
       </div>
       <div className="body">
         <span className="title">{item.title}</span>
@@ -18,11 +31,22 @@ export function ProductCard({ item }: { item: ListingCard }) {
         </span>
         <span className="meta">
           {item.merchant.displayName}
-          {item.merchant.markets[0] ? ` · ${item.merchant.markets[0].name}` : item.merchant.areaLabel ? ` · ${item.merchant.areaLabel}` : ''}
+          {item.merchant.markets[0]
+            ? ` · ${item.merchant.markets[0].name}`
+            : item.merchant.areaLabel
+              ? ` · ${item.merchant.areaLabel}`
+              : ''}
         </span>
         <span className="row" style={{ gap: 4, marginTop: 'auto' }}>
           <AvailabilityBadge a={item.availability} />
-          {item.merchant.identityVerified && <span className="badge badge-green" title="Seller identity verified by KDCN (not a product quality guarantee)">✓ ID</span>}
+          {item.merchant.identityVerified && (
+            <span
+              className="badge badge-green"
+              title="Seller identity verified by KDCN (not a product quality guarantee)"
+            >
+              ✓ ID
+            </span>
+          )}
         </span>
       </div>
     </Link>
@@ -32,12 +56,18 @@ export function ProductCard({ item }: { item: ListingCard }) {
 export function MerchantCard({ m }: { m: PublicMerchant }) {
   return (
     <Link href={`/s/${m.slug}`} className="merchant-card">
-      <div className="avatar">{m.logoUrl ? <img src={m.logoUrl} alt="" loading="lazy" /> : initials(m.displayName)}</div>
+      <div className="avatar">
+        {m.logoUrl ? <img src={m.logoUrl} alt="" loading="lazy" /> : initials(m.displayName)}
+      </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700 }}>{m.displayName}</div>
         <div className="meta">
           {MERCHANT_TYPE_LABEL[m.type]}
-          {m.markets[0] ? ` · ${m.markets[0].name}` : m.publicAreaLabel ? ` · ${m.publicAreaLabel}` : ''}
+          {m.markets[0]
+            ? ` · ${m.markets[0].name}`
+            : m.publicAreaLabel
+              ? ` · ${m.publicAreaLabel}`
+              : ''}
         </div>
         <VerifiedBadge verified={m.verification.status === 'IDENTITY_VERIFIED'} />
       </div>

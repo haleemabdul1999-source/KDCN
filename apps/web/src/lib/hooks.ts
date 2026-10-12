@@ -32,7 +32,7 @@ export function useApi<T>(path: string | null) {
 export function useAction() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+  const run = useCallback(async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
     setPending(true);
     setError(null);
     try {

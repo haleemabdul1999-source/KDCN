@@ -36,7 +36,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3100',
     trace: 'retain-on-failure',
-    ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
+    ...(process.env.PW_CHROMIUM_PATH
+      ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+      : {}),
   },
   projects: [
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
@@ -46,7 +48,8 @@ export default defineConfig({
     {
       // Non-destructive: apply migrations and the idempotent seed, then start the API.
       // Point E2E_DATABASE_URL at a fresh, empty database (CI creates one per run).
-      command: 'cd ../api && npx prisma migrate deploy && node dist/seed/seed.js && node dist/main.js',
+      command:
+        'cd ../api && npx prisma migrate deploy && node dist/seed/seed.js && node dist/main.js',
       url: 'http://localhost:4100/api/health/ready',
       env: apiEnv,
       reuseExistingServer: false,

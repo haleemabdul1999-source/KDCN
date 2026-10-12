@@ -38,6 +38,9 @@ importers:
       helmet:
         specifier: 8.1.0
         version: 8.1.0
+      prisma:
+        specifier: 6.19.3
+        version: 6.19.3(typescript@5.9.2)
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -84,9 +87,6 @@ importers:
       jest:
         specifier: 30.1.3
         version: 30.1.3(@types/node@22.18.1)
-      prisma:
-        specifier: 6.19.3
-        version: 6.19.3(typescript@5.9.2)
       supertest:
         specifier: 7.1.4
         version: 7.1.4

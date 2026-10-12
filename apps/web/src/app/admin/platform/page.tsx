@@ -46,8 +46,16 @@ export default function Platform() {
   const [msg, setMsg] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [userQ, setUserQ] = useState('');
   const [auditQ, setAuditQ] = useState('');
-  const users = useApi<{ items: User[] }>(tab === 'users' ? `/admin/users?pageSize=50${userQ ? `&q=${encodeURIComponent(userQ)}` : ''}` : null);
-  const audit = useApi<{ items: Audit[]; total: number }>(tab === 'audit' ? `/admin/audit?pageSize=50${auditQ ? `&action=${encodeURIComponent(auditQ)}` : ''}` : null);
+  const users = useApi<{ items: User[] }>(
+    tab === 'users'
+      ? `/admin/users?pageSize=50${userQ ? `&q=${encodeURIComponent(userQ)}` : ''}`
+      : null,
+  );
+  const audit = useApi<{ items: Audit[]; total: number }>(
+    tab === 'audit'
+      ? `/admin/audit?pageSize=50${auditQ ? `&action=${encodeURIComponent(auditQ)}` : ''}`
+      : null,
+  );
   const markets = useApi<Market[]>(tab === 'markets' ? '/admin/markets' : null);
   const jobs = useApi<Job[]>(tab === 'jobs' ? '/admin/jobs' : null);
   const [op, setOp] = useState<Record<string, { email: string; role: string }>>({});
@@ -80,7 +88,14 @@ export default function Platform() {
 
       {tab === 'audit' && (
         <>
-          <input type="search" aria-label="Filter by action prefix" placeholder="Filter by action (e.g. merchant., refund., payment.)" value={auditQ} onChange={(e) => setAuditQ(e.target.value)} style={{ maxWidth: 420 }} />
+          <input
+            type="search"
+            aria-label="Filter by action prefix"
+            placeholder="Filter by action (e.g. merchant., refund., payment.)"
+            value={auditQ}
+            onChange={(e) => setAuditQ(e.target.value)}
+            style={{ maxWidth: 420 }}
+          />
           {audit.loading && <Loading />}
           {audit.error && <Alert tone="error">{audit.error.message}</Alert>}
           {audit.data && (
@@ -103,7 +118,11 @@ export default function Platform() {
                       <td className="small">
                         {a.entityType} {a.entityId.slice(0, 8)}
                       </td>
-                      <td className="small">{a.actorUserId ? `${a.actorUserId.slice(0, 8)} ${a.actorRoles.join(',').toLowerCase()}` : 'system'}</td>
+                      <td className="small">
+                        {a.actorUserId
+                          ? `${a.actorUserId.slice(0, 8)} ${a.actorRoles.join(',').toLowerCase()}`
+                          : 'system'}
+                      </td>
                       <td className="small" style={{ maxWidth: 360, wordBreak: 'break-word' }}>
                         {JSON.stringify(a.metadata).slice(0, 200)}
                       </td>
@@ -118,7 +137,14 @@ export default function Platform() {
 
       {tab === 'users' && (
         <>
-          <input type="search" aria-label="Search users" placeholder="Search email or name" value={userQ} onChange={(e) => setUserQ(e.target.value)} style={{ maxWidth: 320 }} />
+          <input
+            type="search"
+            aria-label="Search users"
+            placeholder="Search email or name"
+            value={userQ}
+            onChange={(e) => setUserQ(e.target.value)}
+            style={{ maxWidth: 320 }}
+          />
           {users.error && <Alert tone="error">{users.error.message}</Alert>}
           {users.data && (
             <div className="table-wrap">
@@ -140,11 +166,29 @@ export default function Platform() {
                       </td>
                       <td className="small">
                         {ROLES.map((r) => (
-                          <label key={r} className="checkbox" style={{ display: 'inline-flex', marginRight: 8 }}>
+                          <label
+                            key={r}
+                            className="checkbox"
+                            style={{ display: 'inline-flex', marginRight: 8 }}
+                          >
                             <input
                               type="checkbox"
                               checked={u.staffRoles.includes(r)}
-                              onChange={(e) => run(() => api(`/admin/users/${u.id}/roles`, { method: 'PUT', body: { staffRoles: e.target.checked ? [...u.staffRoles, r] : u.staffRoles.filter((x) => x !== r) } }), 'Roles updated — user must sign in again', users.reload)}
+                              onChange={(e) =>
+                                run(
+                                  () =>
+                                    api(`/admin/users/${u.id}/roles`, {
+                                      method: 'PUT',
+                                      body: {
+                                        staffRoles: e.target.checked
+                                          ? [...u.staffRoles, r]
+                                          : u.staffRoles.filter((x) => x !== r),
+                                      },
+                                    }),
+                                  'Roles updated — user must sign in again',
+                                  users.reload,
+                                )
+                              }
                             />
                             {r.toLowerCase().replace('_', ' ')}
                           </label>
@@ -152,7 +196,22 @@ export default function Platform() {
                       </td>
                       <td className="small">{u.mfaEnabled ? 'Enrolled' : '—'}</td>
                       <td>
-                        <button className="btn btn-sm btn-secondary" onClick={() => run(() => api(`/admin/users/${u.id}/status`, { body: { status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE', reason: 'Changed by administrator' } }), 'Status updated', users.reload)}>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() =>
+                            run(
+                              () =>
+                                api(`/admin/users/${u.id}/status`, {
+                                  body: {
+                                    status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
+                                    reason: 'Changed by administrator',
+                                  },
+                                }),
+                              'Status updated',
+                              users.reload,
+                            )
+                          }
+                        >
                           {u.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
                         </button>
                       </td>
@@ -171,21 +230,60 @@ export default function Platform() {
           return (
             <section key={m.id} className="card stack-sm">
               <h3>
-                {m.name} <span className="meta">({m._count.affiliations} affiliations · {m._count.collectionPoints} collection points)</span>
+                {m.name}{' '}
+                <span className="meta">
+                  ({m._count.affiliations} affiliations · {m._count.collectionPoints} collection
+                  points)
+                </span>
               </h3>
               {m.operators.map((o) => (
                 <div key={o.user.id} className="row-between small">
                   <span>
                     {o.user.name} &lt;{o.user.email}&gt; — {o.role.toLowerCase().replace('_', ' ')}
                   </span>
-                  <button className="btn btn-link" onClick={() => run(() => api(`/admin/markets/${m.id}/operators/${o.user.id}`, { method: 'DELETE' }), 'Operator removed', markets.reload)}>
+                  <button
+                    className="btn btn-link"
+                    onClick={() =>
+                      run(
+                        () =>
+                          api(`/admin/markets/${m.id}/operators/${o.user.id}`, {
+                            method: 'DELETE',
+                          }),
+                        'Operator removed',
+                        markets.reload,
+                      )
+                    }
+                  >
                     Remove
                   </button>
                 </div>
               ))}
-              <form className="row" onSubmit={(e) => (e.preventDefault(), run(() => api(`/admin/markets/${m.id}/operators`, { body: v }), 'Operator added', markets.reload))}>
-                <input aria-label="Operator email" type="email" required placeholder="operator@email" value={v.email} onChange={(e) => setOp({ ...op, [m.id]: { ...v, email: e.target.value } })} style={{ maxWidth: 260 }} />
-                <select aria-label="Operator role" value={v.role} onChange={(e) => setOp({ ...op, [m.id]: { ...v, role: e.target.value } })} style={{ maxWidth: 200 }}>
+              <form
+                className="row"
+                onSubmit={(e) => (
+                  e.preventDefault(),
+                  run(
+                    () => api(`/admin/markets/${m.id}/operators`, { body: v }),
+                    'Operator added',
+                    markets.reload,
+                  )
+                )}
+              >
+                <input
+                  aria-label="Operator email"
+                  type="email"
+                  required
+                  placeholder="operator@email"
+                  value={v.email}
+                  onChange={(e) => setOp({ ...op, [m.id]: { ...v, email: e.target.value } })}
+                  style={{ maxWidth: 260 }}
+                />
+                <select
+                  aria-label="Operator role"
+                  value={v.role}
+                  onChange={(e) => setOp({ ...op, [m.id]: { ...v, role: e.target.value } })}
+                  style={{ maxWidth: 200 }}
+                >
                   <option value="MARKET_ADMIN">Market admin</option>
                   <option value="MARKET_EDITOR">Content editor</option>
                 </select>
@@ -211,9 +309,20 @@ export default function Platform() {
                 <tr key={j.name}>
                   <td className="small">{j.name}</td>
                   <td className="small">{Math.round(j.everyMs / 1000)}s</td>
-                  <td className="small">{j.lastRun ? `${date(j.lastRun.at, true)} → ${j.lastRun.result}` : '—'}</td>
+                  <td className="small">
+                    {j.lastRun ? `${date(j.lastRun.at, true)} → ${j.lastRun.result}` : '—'}
+                  </td>
                   <td>
-                    <button className="btn btn-sm btn-secondary" onClick={() => run(() => api(`/admin/jobs/${j.name}/run`, { method: 'POST' }), 'Job run', jobs.reload)}>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() =>
+                        run(
+                          () => api(`/admin/jobs/${j.name}/run`, { method: 'POST' }),
+                          'Job run',
+                          jobs.reload,
+                        )
+                      }
+                    >
                       Run now
                     </button>
                   </td>

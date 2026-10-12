@@ -9,13 +9,35 @@ import { api, ApiError, newIdempotencyKey, saveOrderToken, track } from '@/lib/a
 import { FULFILMENT_LABEL, naira } from '@/lib/format';
 
 interface Options {
-  options: { method: string; feeMinor: number; instructions: string; collectionPoint: { id: string; name: string; publicAddress: string; openingHours: string } | null }[];
-  deliveryAreas: { deliveryFeeMinor: number; etaDays: number; area: { id: string; name: string } }[];
+  options: {
+    method: string;
+    feeMinor: number;
+    instructions: string;
+    collectionPoint: {
+      id: string;
+      name: string;
+      publicAddress: string;
+      openingHours: string;
+    } | null;
+  }[];
+  deliveryAreas: {
+    deliveryFeeMinor: number;
+    etaDays: number;
+    area: { id: string; name: string };
+  }[];
   storeLocations: { label: string; publicAddress: string | null; unitLabel: string | null }[];
 }
 interface Quote {
   merchant: { displayName: string };
-  lines: { listingVariantId: string; title: string; variantName: string; quantity: number; unitPriceMinor: number; lineTotalMinor: number; stockMode: string }[];
+  lines: {
+    listingVariantId: string;
+    title: string;
+    variantName: string;
+    quantity: number;
+    unitPriceMinor: number;
+    lineTotalMinor: number;
+    stockMode: string;
+  }[];
   subtotalMinor: number;
   deliveryFeeMinor: number;
   serviceFeeMinor: number;
@@ -50,7 +72,10 @@ export default function CheckoutPage() {
       .then((o) => {
         setOpts(o);
         const first = o.options[0];
-        if (first) setChoice(first.collectionPoint ? `${first.method}:${first.collectionPoint.id}` : first.method);
+        if (first)
+          setChoice(
+            first.collectionPoint ? `${first.method}:${first.collectionPoint.id}` : first.method,
+          );
       })
       .catch((e) => setError(e.message));
     track('CHECKOUT_STARTED');
@@ -61,7 +86,14 @@ export default function CheckoutPage() {
       setQuote(null);
       return;
     }
-    api<Quote>('/checkout/quote', { body: { merchantId, fulfilmentMethod: method, collectionPointId: collectionPointId || undefined, deliveryAreaId: isDelivery ? areaId : undefined } })
+    api<Quote>('/checkout/quote', {
+      body: {
+        merchantId,
+        fulfilmentMethod: method,
+        collectionPointId: collectionPointId || undefined,
+        deliveryAreaId: isDelivery ? areaId : undefined,
+      },
+    })
       .then((q) => {
         setQuote(q);
         setError(null);
@@ -78,23 +110,30 @@ export default function CheckoutPage() {
     setPlacing(true);
     setError(null);
     try {
-      const res = await api<{ order: { id: string }; guestAccessToken?: string }>('/checkout/place', {
-        headers: { 'Idempotency-Key': idemKey },
-        body: {
-          merchantId,
-          fulfilmentMethod: method,
-          collectionPointId: collectionPointId || undefined,
-          deliveryAreaId: isDelivery ? areaId : undefined,
-          deliveryAddress: isDelivery ? address : undefined,
-          recipientPhone: phone || undefined,
-          customerNote: note || undefined,
-          acceptTerms: accept,
-          ...(me ? {} : { guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone }),
+      const res = await api<{ order: { id: string }; guestAccessToken?: string }>(
+        '/checkout/place',
+        {
+          headers: { 'Idempotency-Key': idemKey },
+          body: {
+            merchantId,
+            fulfilmentMethod: method,
+            collectionPointId: collectionPointId || undefined,
+            deliveryAreaId: isDelivery ? areaId : undefined,
+            deliveryAddress: isDelivery ? address : undefined,
+            recipientPhone: phone || undefined,
+            customerNote: note || undefined,
+            acceptTerms: accept,
+            ...(me
+              ? {}
+              : { guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone }),
+          },
         },
-      });
+      );
       if (res.guestAccessToken) saveOrderToken(res.order.id, res.guestAccessToken);
       await refreshCart();
-      router.push(`/orders/${res.order.id}${res.guestAccessToken ? `?token=${encodeURIComponent(res.guestAccessToken)}` : ''}`);
+      router.push(
+        `/orders/${res.order.id}${res.guestAccessToken ? `?token=${encodeURIComponent(res.guestAccessToken)}` : ''}`,
+      );
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not place your order');
       setPlacing(false);
@@ -110,38 +149,65 @@ export default function CheckoutPage() {
           <section className="card">
             <h2>Your details</h2>
             <p className="small muted">
-              <Link href={`/login?next=/checkout/${merchantId}`}>Sign in</Link> to track orders in your account, or continue as a guest.
+              <Link href={`/login?next=/checkout/${merchantId}`}>Sign in</Link> to track orders in
+              your account, or continue as a guest.
             </p>
             <div className="field">
               <label htmlFor="g-name">Full name</label>
-              <input id="g-name" required value={guest.name} onChange={(e) => setGuest({ ...guest, name: e.target.value })} />
+              <input
+                id="g-name"
+                required
+                value={guest.name}
+                onChange={(e) => setGuest({ ...guest, name: e.target.value })}
+              />
             </div>
             <div className="grid-2">
               <div className="field">
                 <label htmlFor="g-email">Email (for receipts)</label>
-                <input id="g-email" type="email" required value={guest.email} onChange={(e) => setGuest({ ...guest, email: e.target.value })} />
+                <input
+                  id="g-email"
+                  type="email"
+                  required
+                  value={guest.email}
+                  onChange={(e) => setGuest({ ...guest, email: e.target.value })}
+                />
               </div>
               <div className="field">
                 <label htmlFor="g-phone">Phone</label>
-                <input id="g-phone" type="tel" required value={guest.phone} onChange={(e) => setGuest({ ...guest, phone: e.target.value })} />
+                <input
+                  id="g-phone"
+                  type="tel"
+                  required
+                  value={guest.phone}
+                  onChange={(e) => setGuest({ ...guest, phone: e.target.value })}
+                />
               </div>
             </div>
           </section>
         )}
         <section className="card">
           <h2>How would you like to get your order?</h2>
-          {opts?.options.length === 0 && <Alert tone="warn">This seller has not set up delivery or collection yet.</Alert>}
+          {opts?.options.length === 0 && (
+            <Alert tone="warn">This seller has not set up delivery or collection yet.</Alert>
+          )}
           <div role="radiogroup" aria-label="Delivery or collection">
             {opts?.options.map((o) => {
               const value = o.collectionPoint ? `${o.method}:${o.collectionPoint.id}` : o.method;
               return (
                 <label key={value} className="radio-card">
-                  <input type="radio" name="fulfilment" value={value} checked={choice === value} onChange={() => setChoice(value)} />
+                  <input
+                    type="radio"
+                    name="fulfilment"
+                    value={value}
+                    checked={choice === value}
+                    onChange={() => setChoice(value)}
+                  />
                   <span>
                     <strong>{FULFILMENT_LABEL[o.method]}</strong>
                     {o.collectionPoint && (
                       <span className="meta" style={{ display: 'block' }}>
-                        {o.collectionPoint.name} — {o.collectionPoint.publicAddress} {o.collectionPoint.openingHours && `(${o.collectionPoint.openingHours})`}
+                        {o.collectionPoint.name} — {o.collectionPoint.publicAddress}{' '}
+                        {o.collectionPoint.openingHours && `(${o.collectionPoint.openingHours})`}
                       </span>
                     )}
                     {o.method === 'IN_STORE_COLLECTION' &&
@@ -150,9 +216,21 @@ export default function CheckoutPage() {
                           {l.label}: {l.publicAddress}
                         </span>
                       ))}
-                    {o.method === 'MERCHANT_DELIVERY' && <span className="meta" style={{ display: 'block' }}>Fee depends on your area</span>}
-                    {o.method !== 'MERCHANT_DELIVERY' && o.feeMinor > 0 && <span className="meta" style={{ display: 'block' }}>{naira(o.feeMinor)}</span>}
-                    {o.instructions && <span className="meta" style={{ display: 'block' }}>{o.instructions}</span>}
+                    {o.method === 'MERCHANT_DELIVERY' && (
+                      <span className="meta" style={{ display: 'block' }}>
+                        Fee depends on your area
+                      </span>
+                    )}
+                    {o.method !== 'MERCHANT_DELIVERY' && o.feeMinor > 0 && (
+                      <span className="meta" style={{ display: 'block' }}>
+                        {naira(o.feeMinor)}
+                      </span>
+                    )}
+                    {o.instructions && (
+                      <span className="meta" style={{ display: 'block' }}>
+                        {o.instructions}
+                      </span>
+                    )}
                   </span>
                 </label>
               );
@@ -162,7 +240,12 @@ export default function CheckoutPage() {
             <div className="stack-sm" style={{ marginTop: 12 }}>
               <div className="field">
                 <label htmlFor="area">Delivery area</label>
-                <select id="area" value={areaId} onChange={(e) => setAreaId(e.target.value)} required>
+                <select
+                  id="area"
+                  value={areaId}
+                  onChange={(e) => setAreaId(e.target.value)}
+                  required
+                >
                   <option value="">Choose your area</option>
                   {opts?.deliveryAreas.map((a) => (
                     <option key={a.area.id} value={a.area.id}>
@@ -171,11 +254,19 @@ export default function CheckoutPage() {
                     </option>
                   ))}
                 </select>
-                {method === 'MERCHANT_DELIVERY' && opts?.deliveryAreas.length === 0 && <div className="error">This seller has no delivery areas configured.</div>}
+                {method === 'MERCHANT_DELIVERY' && opts?.deliveryAreas.length === 0 && (
+                  <div className="error">This seller has no delivery areas configured.</div>
+                )}
               </div>
               <div className="field">
                 <label htmlFor="addr">Delivery address</label>
-                <textarea id="addr" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House number, street, landmark" required />
+                <textarea
+                  id="addr"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="House number, street, landmark"
+                  required
+                />
                 <div className="hint">Shared with the seller and courier only after you pay.</div>
               </div>
             </div>
@@ -186,14 +277,21 @@ export default function CheckoutPage() {
           </div>
           <div className="field">
             <label htmlFor="note">Note to seller (optional)</label>
-            <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+            <textarea
+              id="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
+            />
           </div>
         </section>
       </div>
       <aside className="card stack" aria-live="polite">
         <h2>Order summary</h2>
         {!quote ? (
-          <p className="muted small">{isDelivery && !areaId ? 'Choose a delivery area to see your total.' : 'Calculating…'}</p>
+          <p className="muted small">
+            {isDelivery && !areaId ? 'Choose a delivery area to see your total.' : 'Calculating…'}
+          </p>
         ) : (
           <>
             {quote.lines.map((l) => (
@@ -223,22 +321,58 @@ export default function CheckoutPage() {
               </div>
             </div>
             {quote.requiresConfirmation ? (
-              <Alert tone="info">The seller will confirm availability first. You&apos;ll be asked to pay only after they confirm — nothing is charged now.</Alert>
+              <Alert tone="info">
+                The seller will confirm availability first. You&apos;ll be asked to pay only after
+                they confirm — nothing is charged now.
+              </Alert>
             ) : (
-              <Alert tone="info">All items are in stock. You&apos;ll pay securely on the next step.</Alert>
+              <Alert tone="info">
+                All items are in stock. You&apos;ll pay securely on the next step.
+              </Alert>
             )}
-            {quote.maxLeadTimeDays > 0 && <p className="small">Made-to-order items take about {quote.maxLeadTimeDays} day(s) to prepare after payment.</p>}
+            {quote.maxLeadTimeDays > 0 && (
+              <p className="small">
+                Made-to-order items take about {quote.maxLeadTimeDays} day(s) to prepare after
+                payment.
+              </p>
+            )}
             <details>
               <summary>Refund &amp; cancellation terms</summary>
               <p className="small">{quote.terms.platform}</p>
-              {quote.terms.cancellationPolicy && <p className="small"><strong>Seller cancellation policy:</strong> {quote.terms.cancellationPolicy}</p>}
-              {quote.terms.returnPolicy && <p className="small"><strong>Seller return policy:</strong> {quote.terms.returnPolicy}</p>}
+              {quote.terms.cancellationPolicy && (
+                <p className="small">
+                  <strong>Seller cancellation policy:</strong> {quote.terms.cancellationPolicy}
+                </p>
+              )}
+              {quote.terms.returnPolicy && (
+                <p className="small">
+                  <strong>Seller return policy:</strong> {quote.terms.returnPolicy}
+                </p>
+              )}
             </details>
             <label className="checkbox">
-              <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} /> I accept the refund and cancellation terms
+              <input
+                type="checkbox"
+                checked={accept}
+                onChange={(e) => setAccept(e.target.checked)}
+              />{' '}
+              I accept the refund and cancellation terms
             </label>
-            <button className="btn btn-amber btn-block" disabled={!accept || placing || (isDelivery && address.trim().length < 5) || (!me && (!guest.email || !guest.phone))} onClick={place}>
-              {placing ? 'Placing order…' : quote.requiresConfirmation ? 'Place order (pay after confirmation)' : 'Place order & continue to payment'}
+            <button
+              className="btn btn-amber btn-block"
+              disabled={
+                !accept ||
+                placing ||
+                (isDelivery && address.trim().length < 5) ||
+                (!me && (!guest.email || !guest.phone))
+              }
+              onClick={place}
+            >
+              {placing
+                ? 'Placing order…'
+                : quote.requiresConfirmation
+                  ? 'Place order (pay after confirmation)'
+                  : 'Place order & continue to payment'}
             </button>
           </>
         )}

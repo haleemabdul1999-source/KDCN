@@ -6,7 +6,15 @@ async function main() {
   const e = env(); // validates configuration before anything else
   const app = await createApp();
   await app.listen(e.PORT);
-  process.stdout.write(JSON.stringify({ ts: new Date().toISOString(), level: 'info', msg: 'api.listening', port: e.PORT, paymentProvider: e.PAYMENT_PROVIDER }) + '\n');
+  process.stdout.write(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: 'info',
+      msg: 'api.listening',
+      port: e.PORT,
+      paymentProvider: e.PAYMENT_PROVIDER,
+    }) + '\n',
+  );
 }
 
 main().catch((err) => {
