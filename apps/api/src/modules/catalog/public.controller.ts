@@ -29,6 +29,16 @@ export class PublicCatalogController {
   }
 
   @Public()
+  @Get('collection-points')
+  async collectionPoints() {
+    return this.prisma.collectionPoint.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, publicAddress: true, openingHours: true, marketId: true, area: { select: { name: true } }, market: { select: { name: true } } },
+    });
+  }
+
+  @Public()
   @Get('categories')
   async categories() {
     const all = await this.prisma.category.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });

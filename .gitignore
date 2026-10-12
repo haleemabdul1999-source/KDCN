@@ -13,3 +13,4 @@ playwright-report/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo
+apps/web/test-results/
