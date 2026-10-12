@@ -1,0 +1,1362 @@
+// KDCN domain schema.
+// Conventions:
+//  * All money is stored as integer minor units (kobo for NGN) in `...Minor` BigInt-free Int columns.
+//    Int (32-bit) caps a single amount at ~₦21.4m; amounts above that are rejected by validation.
+//    See docs/adr/0004-money.md for the rationale and the migration path to BigInt.
+//  * Private / confidential fields (residential addresses, payout account numbers, MFA secrets)
+//    are stored encrypted (AES-256-GCM, `enc:` prefix) by the application layer and are never
+//    selected by public-facing queries.
+//  * Status columns are driven by explicit state machines in the application layer
+//    (see src/modules/orders/order-state-machine.ts) and updated with compare-and-set
+//    (`WHERE status = <expected>`) to make concurrent transitions safe.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+/// Internal KDCN staff roles. Customers and merchants are not staff roles; merchant
+/// access is granted through MerchantMember, market access through MarketOperatorMember.
+enum StaffRole {
+  SUPER_ADMIN
+  OPERATIONS // merchant verification, product moderation, affiliations, order oversight, fulfilment
+  FINANCE // reconciliation, refunds, settlements, commission configuration
+  SUPPORT // disputes, customer complaints
+}
+
+model User {
+  id                String      @id @default(uuid())
+  email             String      @unique
+  phone             String?
+  name              String
+  passwordHash      String
+  status            UserStatus  @default(ACTIVE)
+  staffRoles        StaffRole[] @default([])
+  mfaSecretEnc      String?
+  mfaEnabled        Boolean     @default(false)
+  failedLoginCount  Int         @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  sessions          Session[]
+  customerProfile   CustomerProfile?
+  merchantMembers   MerchantMember[]
+  operatorMembers   MarketOperatorMember[]
+  orders            Order[]
+  carts             Cart[]
+  reviews           Review[]
+  notifications     Notification[]
+  addresses         CustomerAddress[]
+
+  @@map("users")
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  userId      String
+  tokenHash   String    @unique
+  mfaVerified Boolean   @default(false)
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model CustomerProfile {
+  userId        String   @id
+  defaultAreaId String?
+  marketingOptIn Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultArea Area? @relation(fields: [defaultAreaId], references: [id])
+
+  @@map("customer_profiles")
+}
+
+/// Customer delivery address. Private: only visible to the customer, the fulfilling merchant
+/// (via the order's encrypted fulfilment snapshot) and authorised staff.
+model CustomerAddress {
+  id           String   @id @default(uuid())
+  userId       String
+  label        String
+  areaId       String
+  addressEnc   String
+  phone        String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area Area @relation(fields: [areaId], references: [id])
+
+  @@index([userId])
+  @@map("customer_addresses")
+}
+
+// ───────────────────────────── Geography ─────────────────────────────
+
+model City {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  state     String
+  active    Boolean  @default(true)
+
+  areas   Area[]
+  markets Market[]
+
+  @@map("cities")
+}
+
+/// Neighbourhood / district used for discovery and delivery service areas.
+model Area {
+  id     String @id @default(uuid())
+  cityId String
+  slug   String
+  name   String
+
+  city              City                  @relation(fields: [cityId], references: [id])
+  merchants         Merchant[]
+  serviceAreas      MerchantServiceArea[]
+  markets           Market[]
+  collectionPoints  CollectionPoint[]
+  locations         MerchantLocation[]
+  customerProfiles  CustomerProfile[]
+  customerAddresses CustomerAddress[]
+
+  @@unique([cityId, slug])
+  @@map("areas")
+}
+
+// ───────────────────────────── Merchants ─────────────────────────────
+
+enum MerchantType {
+  HOME_VENDOR
+  MALL_RETAILER
+  MARKET_TRADER
+  INDEPENDENT_SHOP
+}
+
+enum MerchantStatus {
+  DRAFT // registration started, not submitted
+  PENDING_REVIEW
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum RiskTier {
+  STANDARD
+  ENHANCED
+}
+
+enum MerchantRole {
+  OWNER
+  MANAGER // everything except staff & payout management
+  STAFF // orders & products only
+}
+
+enum SettlementMode {
+  PROVIDER_SPLIT // provider settles the merchant share directly to the merchant (e.g. Paystack subaccount)
+  MANUAL_RECORD // KDCN records entitlement; payout executed outside the platform after reconciliation
+}
+
+model Merchant {
+  id                     String          @id @default(uuid())
+  slug                   String          @unique
+  displayName            String
+  legalName              String?
+  type                   MerchantType
+  status                 MerchantStatus  @default(DRAFT)
+  riskTier               RiskTier        @default(STANDARD)
+  description            String          @default("")
+  logoKey                String?
+  coverKey               String?
+  /// Public, approximate area shown on storefronts (never a residential address).
+  publicAreaId           String?
+  publicAreaLabel        String?
+  contactEmail           String
+  contactPhone           String
+  /// Public WhatsApp/Instagram handles the merchant chooses to share.
+  whatsappNumber         String?
+  instagramHandle        String?
+  cacNumber              String?
+  returnPolicy           String          @default("")
+  cancellationPolicy     String          @default("")
+  defaultLeadTimeDays    Int             @default(0)
+  payoutBankCode         String?
+  payoutAccountNumberEnc String?
+  payoutAccountName      String?
+  providerSubaccountCode String?
+  settlementMode         SettlementMode  @default(MANUAL_RECORD)
+  approvedAt             DateTime?
+  suspendedAt            DateTime?
+  suspensionReason       String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  publicArea      Area?                   @relation(fields: [publicAreaId], references: [id])
+  members         MerchantMember[]
+  invitations     MerchantInvitation[]
+  verifications   MerchantVerification[]
+  affiliations    MarketAffiliation[]
+  locations       MerchantLocation[]
+  serviceAreas    MerchantServiceArea[]
+  listings        Listing[]
+  products        Product[]
+  orders          Order[]
+  settlements     SettlementAllocation[]
+  reviews         Review[]
+  fulfilmentOpts  MerchantFulfilmentOption[]
+  enquiries       Enquiry[]
+
+  @@index([status, type])
+  @@map("merchants")
+}
+
+model MerchantMember {
+  id         String       @id @default(uuid())
+  merchantId String
+  userId     String
+  role       MerchantRole
+  createdAt  DateTime     @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, userId])
+  @@index([userId])
+  @@map("merchant_members")
+}
+
+model MerchantInvitation {
+  id          String       @id @default(uuid())
+  merchantId  String
+  email       String
+  role        MerchantRole
+  tokenHash   String       @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("merchant_invitations")
+}
+
+enum VerificationPathway {
+  HOME_VENDOR_SOLE_TRADER
+  REGISTERED_BUSINESS
+  MARKET_RETAILER
+  ENHANCED
+}
+
+enum VerificationStatus {
+  PENDING
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model MerchantVerification {
+  id            String              @id @default(uuid())
+  merchantId    String
+  pathway       VerificationPathway
+  status        VerificationStatus  @default(PENDING)
+  submittedAt   DateTime            @default(now())
+  reviewerId    String?
+  decisionNotes String?
+  requestNote   String?
+  decidedAt     DateTime?
+  /// Verification is time-limited; an expired verification must be renewed.
+  expiresAt     DateTime?
+
+  merchant  Merchant               @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  documents VerificationDocument[]
+
+  @@index([status])
+  @@index([merchantId])
+  @@map("merchant_verifications")
+}
+
+enum VerificationDocType {
+  GOVERNMENT_ID
+  CAC_CERTIFICATE
+  PROOF_OF_ADDRESS
+  TENANCY_OR_SHOP_ALLOCATION
+  SELFIE
+  FOOD_HANDLING_PERMIT
+  OTHER
+}
+
+/// Verification documents are stored encrypted in the private storage bucket and are only
+/// retrievable by OPERATIONS / SUPER_ADMIN staff (audited) and the uploading merchant owner.
+model VerificationDocument {
+  id             String              @id @default(uuid())
+  verificationId String
+  type           VerificationDocType
+  storageKey     String
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  uploadedById   String
+  createdAt      DateTime            @default(now())
+
+  verification MerchantVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@map("verification_documents")
+}
+
+enum LocationKind {
+  PUBLIC_STORE // shop/stall a customer may visit (e.g. Galaxy Mall unit)
+  PRIVATE_FULFILMENT // home/workshop; confidential, never exposed publicly
+}
+
+model MerchantLocation {
+  id         String       @id @default(uuid())
+  merchantId String
+  kind       LocationKind
+  label      String
+  areaId     String
+  /// Only populated for PUBLIC_STORE locations.
+  publicAddress String?
+  /// Only populated for PRIVATE_FULFILMENT locations (AES-GCM encrypted).
+  privateAddressEnc String?
+  marketId   String?
+  unitLabel  String?
+  createdAt  DateTime     @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  area     Area     @relation(fields: [areaId], references: [id])
+  market   Market?  @relation(fields: [marketId], references: [id])
+
+  @@index([merchantId])
+  @@map("merchant_locations")
+}
+
+model MerchantServiceArea {
+  id               String @id @default(uuid())
+  merchantId       String
+  areaId           String
+  deliveryFeeMinor Int
+  etaDays          Int    @default(1)
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  area     Area     @relation(fields: [areaId], references: [id])
+
+  @@unique([merchantId, areaId])
+  @@map("merchant_service_areas")
+}
+
+enum FulfilmentMethod {
+  IN_STORE_COLLECTION
+  COLLECTION_POINT
+  MERCHANT_DELIVERY
+  THIRD_PARTY_DELIVERY
+}
+
+/// Which fulfilment methods a merchant offers. VENDOR_PICKUP (logistics partner collects from a
+/// home vendor) is modelled as THIRD_PARTY_DELIVERY with `pickupFromMerchant = true`.
+model MerchantFulfilmentOption {
+  id                String           @id @default(uuid())
+  merchantId        String
+  method            FulfilmentMethod
+  enabled           Boolean          @default(true)
+  collectionPointId String?
+  /// Flat fee for collection-point / third-party delivery when not area-based.
+  feeMinor          Int              @default(0)
+  instructions      String           @default("")
+  pickupFromMerchant Boolean         @default(false)
+
+  merchant        Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  collectionPoint CollectionPoint? @relation(fields: [collectionPointId], references: [id])
+
+  @@unique([merchantId, method, collectionPointId])
+  @@map("merchant_fulfilment_options")
+}
+
+// ───────────────────────────── Markets ─────────────────────────────
+
+enum MarketKind {
+  SHOPPING_MALL
+  TRADITIONAL_MARKET
+  COMMERCIAL_CLUSTER
+}
+
+model Market {
+  id          String     @id @default(uuid())
+  slug        String     @unique
+  name        String
+  kind        MarketKind
+  cityId      String
+  areaId      String?
+  tagline     String     @default("")
+  description String     @default("")
+  publicAddress String   @default("")
+  coverKey    String?
+  logoKey     String?
+  openingHours String    @default("")
+  /// Branded collections get a dedicated landing page experience (e.g. Galaxy Mall).
+  branded     Boolean    @default(false)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  city             City                   @relation(fields: [cityId], references: [id])
+  area             Area?                  @relation(fields: [areaId], references: [id])
+  affiliations     MarketAffiliation[]
+  operators        MarketOperatorMember[]
+  announcements    MarketAnnouncement[]
+  collectionPoints CollectionPoint[]
+  collections      ProductCollection[]
+  locations        MerchantLocation[]
+
+  @@map("markets")
+}
+
+enum AffiliationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ENDED
+}
+
+model MarketAffiliation {
+  id           String            @id @default(uuid())
+  merchantId   String
+  marketId     String
+  status       AffiliationStatus @default(PENDING)
+  unitLabel    String?
+  decidedById  String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime          @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  market   Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, marketId])
+  @@index([marketId, status])
+  @@map("market_affiliations")
+}
+
+enum OperatorRole {
+  MARKET_ADMIN // may approve affiliations, manage content & collection points
+  MARKET_EDITOR // content & announcements only
+}
+
+model MarketOperatorMember {
+  id        String       @id @default(uuid())
+  marketId  String
+  userId    String
+  role      OperatorRole
+  createdAt DateTime     @default(now())
+
+  market Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, userId])
+  @@map("market_operator_members")
+}
+
+model MarketAnnouncement {
+  id        String    @id @default(uuid())
+  marketId  String
+  title     String
+  body      String
+  startsAt  DateTime  @default(now())
+  endsAt    DateTime?
+  published Boolean   @default(true)
+  createdById String
+  createdAt DateTime  @default(now())
+
+  market Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([marketId, published])
+  @@map("market_announcements")
+}
+
+/// Approved neutral or shared collection location (e.g. Galaxy Mall concierge desk).
+model CollectionPoint {
+  id            String   @id @default(uuid())
+  name          String
+  marketId      String?
+  areaId        String
+  publicAddress String
+  openingHours  String   @default("")
+  instructions  String   @default("")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  market        Market?                    @relation(fields: [marketId], references: [id])
+  area          Area                       @relation(fields: [areaId], references: [id])
+  merchantOpts  MerchantFulfilmentOption[]
+  fulfilments   Fulfilment[]
+
+  @@map("collection_points")
+}
+
+// ───────────────────────────── Catalogue ─────────────────────────────
+
+enum HomeVendorPolicy {
+  ALLOWED
+  ENHANCED_REVIEW // home vendors need ENHANCED risk tier verification (e.g. food, cosmetics)
+  PROHIBITED
+}
+
+model Category {
+  id               String           @id @default(uuid())
+  slug             String           @unique
+  name             String
+  parentId         String?
+  sortOrder        Int              @default(0)
+  homeVendorPolicy HomeVendorPolicy @default(ALLOWED)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+enum ModerationStatus {
+  APPROVED
+  PENDING_REVIEW
+  REJECTED
+}
+
+/// Product identity, independent of who sells it. In Release 1 each product is created by a
+/// merchant; the separation allows future catalogue matching (same product, multiple sellers).
+model Product {
+  id                  String           @id @default(uuid())
+  title               String
+  description         String           @default("")
+  categoryId          String
+  brand               String?
+  attributes          Json             @default("{}")
+  createdByMerchantId String
+  moderationStatus    ModerationStatus @default(APPROVED)
+  moderationNote      String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  category  Category         @relation(fields: [categoryId], references: [id])
+  createdBy Merchant         @relation(fields: [createdByMerchantId], references: [id])
+  variants  ProductVariant[]
+  images    ProductImage[]
+  listings  Listing[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  name      String   @default("Standard")
+  options   Json     @default("{}")
+  sku       String?
+  sortOrder Int      @default(0)
+
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  listingVariants ListingVariant[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  storageKey String
+  alt       String  @default("")
+  sortOrder Int     @default(0)
+  width     Int?
+  height    Int?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  REMOVED // merchant removed
+  BLOCKED // removed by moderation
+}
+
+enum StockMode {
+  TRACKED // merchant maintains a stock count; stock is reserved at order creation
+  CONFIRM_ON_ORDER // no reliable count; merchant must confirm availability before payment
+  MADE_TO_ORDER // produced after order; merchant confirms and lead time applies
+}
+
+/// A merchant's offer of a product: price, availability model, fulfilment terms.
+model Listing {
+  id              String        @id @default(uuid())
+  slug            String        @unique
+  merchantId      String
+  productId       String
+  status          ListingStatus @default(DRAFT)
+  stockMode       StockMode     @default(CONFIRM_ON_ORDER)
+  leadTimeDays    Int           @default(0)
+  minOrderQty     Int           @default(1)
+  maxOrderQty     Int           @default(20)
+  returnPolicy    String?
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  /// Maintained by trigger (see migration 0002_search); used for PostgreSQL full-text search.
+  searchVector    Unsupported("tsvector")?
+
+  merchant    Merchant         @relation(fields: [merchantId], references: [id])
+  product     Product          @relation(fields: [productId], references: [id])
+  variants    ListingVariant[]
+  collections CollectionItem[]
+
+  @@unique([merchantId, productId])
+  @@index([status])
+  @@index([merchantId, status])
+  @@map("listings")
+}
+
+/// Purchasable unit: a listing × product variant with its own price and inventory.
+model ListingVariant {
+  id               String  @id @default(uuid())
+  listingId        String
+  productVariantId String
+  priceMinor       Int
+  compareAtMinor   Int?
+  active           Boolean @default(true)
+
+  listing        Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  inventory      Inventory?
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+
+  @@unique([listingId, productVariantId])
+  @@map("listing_variants")
+}
+
+/// Only meaningful for TRACKED listings. `available = quantity - reserved`.
+/// Reservations are taken with a conditional UPDATE (see InventoryService) so concurrent
+/// checkouts cannot oversell.
+model Inventory {
+  listingVariantId String   @id
+  quantity         Int      @default(0)
+  reserved         Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  listingVariant ListingVariant @relation(fields: [listingVariantId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+model ProductCollection {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  marketId    String?
+  featured    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  market Market?          @relation(fields: [marketId], references: [id])
+  items  CollectionItem[]
+
+  @@map("product_collections")
+}
+
+model CollectionItem {
+  collectionId String
+  listingId    String
+  sortOrder    Int    @default(0)
+
+  collection ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  listing    Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, listingId])
+  @@map("collection_items")
+}
+
+// ───────────────────────────── Cart & Checkout ─────────────────────────────
+
+/// A cart may hold items from several merchants (data model ready for multi-merchant baskets);
+/// Release 1 checkout converts one merchant's items at a time into one order.
+model Cart {
+  id         String   @id @default(uuid())
+  userId     String?
+  /// Hash of the guest cart cookie token, for guest carts.
+  guestTokenHash String? @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([userId])
+  @@map("carts")
+}
+
+model CartItem {
+  id               String   @id @default(uuid())
+  cartId           String
+  listingVariantId String
+  quantity         Int
+  addedAt          DateTime @default(now())
+
+  cart           Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  listingVariant ListingVariant @relation(fields: [listingVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, listingVariantId])
+  @@map("cart_items")
+}
+
+/// Records a checkout attempt keyed by the client's idempotency key, so a retried
+/// "Place order" request returns the same order instead of creating a duplicate.
+model CheckoutSession {
+  id             String   @id @default(uuid())
+  idempotencyKey String   @unique
+  userId         String?
+  merchantId     String
+  orderId        String?  @unique
+  requestHash    String
+  createdAt      DateTime @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@map("checkout_sessions")
+}
+
+// ───────────────────────────── Orders ─────────────────────────────
+
+enum OrderStatus {
+  DRAFT
+  PENDING_MERCHANT_CONFIRMATION
+  AWAITING_PAYMENT
+  PAYMENT_PENDING_VERIFICATION
+  PAID
+  ACCEPTED_FOR_FULFILMENT
+  PREPARING
+  READY_FOR_COLLECTION
+  DISPATCHED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+  DISPUTED
+}
+
+/// Reporting segment snapshot taken at order time (merchant affiliations can change later).
+enum MerchantSegment {
+  GALAXY_MALL
+  OTHER_MARKET
+  HOME_VENDOR
+  INDEPENDENT
+}
+
+model Order {
+  id                    String           @id @default(uuid())
+  number                String           @unique
+  customerId            String?
+  guestEmail            String?
+  guestPhone            String?
+  /// SHA-256 of a random access token given to guests for order tracking.
+  guestAccessHash       String?
+  merchantId            String
+  status                OrderStatus      @default(DRAFT)
+  segment               MerchantSegment
+  currency              String           @default("NGN")
+  subtotalMinor         Int
+  deliveryFeeMinor      Int
+  serviceFeeMinor       Int
+  totalMinor            Int
+  commissionBps         Int
+  commissionMinor       Int
+  merchantSnapshot      Json
+  termsSnapshot         Json
+  fulfilmentMethod      FulfilmentMethod
+  customerNote          String?
+  merchantNote          String?
+  cancellationReason    String?
+  cancelledBy           String?
+  confirmationDeadline  DateTime?
+  paymentDeadline       DateTime?
+  confirmedAt           DateTime?
+  paidAt                DateTime?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  stockReserved         Boolean          @default(false)
+  stockCommitted        Boolean          @default(false)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  customer        User?                 @relation(fields: [customerId], references: [id])
+  merchant        Merchant              @relation(fields: [merchantId], references: [id])
+  items           OrderItem[]
+  events          OrderEvent[]
+  payments        PaymentTransaction[]
+  refunds         Refund[]
+  fulfilment      Fulfilment?
+  settlement      SettlementAllocation?
+  disputes        Dispute[]
+  review          Review?
+  checkoutSession CheckoutSession?
+
+  @@index([merchantId, status])
+  @@index([customerId])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String    @id @default(uuid())
+  orderId          String
+  listingVariantId String
+  listingId        String
+  productTitle     String
+  variantName      String
+  unitPriceMinor   Int
+  quantity         Int
+  lineTotalMinor   Int
+  stockMode        StockMode
+  leadTimeDays     Int
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  listingVariant ListingVariant @relation(fields: [listingVariantId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+/// Append-only status history.
+model OrderEvent {
+  id          String       @id @default(uuid())
+  orderId     String
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  actorUserId String?
+  actorType   String
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_events")
+}
+
+// ───────────────────────────── Payments ─────────────────────────────
+
+enum PaymentProvider {
+  MOCK
+  PAYSTACK
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  ABANDONED
+}
+
+model PaymentTransaction {
+  id                    String          @id @default(uuid())
+  orderId               String
+  provider              PaymentProvider
+  /// Our reference, sent to the provider. Unique; the provider echoes it in webhooks.
+  reference             String          @unique
+  amountMinor           Int
+  currency              String          @default("NGN")
+  status                PaymentStatus   @default(INITIATED)
+  providerTransactionId String?
+  providerFeeMinor      Int?
+  channel               String?
+  authorizationUrl      String?
+  failureReason         String?
+  verifiedAt            DateTime?
+  paidAt                DateTime?
+  rawVerification       Json?
+  isTestMode            Boolean         @default(true)
+  /// A successful payment for an order that was already paid (or cancelled). Money was taken,
+  /// so it is recorded as SUCCEEDED and an automatic refund is raised.
+  isDuplicate           Boolean         @default(false)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  refunds Refund[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payment_transactions")
+}
+
+/// Every inbound webhook is stored before processing. The unique (provider, eventKey)
+/// constraint makes duplicate deliveries idempotent.
+model ProviderWebhookEvent {
+  id             String          @id @default(uuid())
+  provider       PaymentProvider
+  eventKey       String
+  eventType      String
+  signatureValid Boolean
+  payload        Json
+  receivedAt     DateTime        @default(now())
+  processedAt    DateTime?
+  result         String?
+  deliveryCount  Int             @default(1)
+
+  @@unique([provider, eventKey])
+  @@index([receivedAt])
+  @@map("provider_webhook_events")
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REJECTED
+}
+
+model Refund {
+  id                   String       @id @default(uuid())
+  orderId              String
+  paymentTransactionId String
+  amountMinor          Int
+  reason               String
+  status               RefundStatus @default(REQUESTED)
+  requestedById        String?
+  approvedById         String?
+  providerRefundId     String?
+  failureReason        String?
+  idempotencyKey       String       @unique
+  disputeId            String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  completedAt          DateTime?
+
+  order              Order              @relation(fields: [orderId], references: [id])
+  paymentTransaction PaymentTransaction @relation(fields: [paymentTransactionId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
+}
+
+// ───────────────────────────── Settlements ─────────────────────────────
+
+enum SettlementStatus {
+  PENDING_FULFILMENT // paid, not yet delivered/collected
+  ELIGIBLE // completed, eligible for payout / reconciliation
+  SETTLED // payout confirmed (provider split settlement or manual transfer reference recorded)
+  ON_HOLD // dispute open
+  REVERSED // fully refunded
+}
+
+/// One per paid order: the authoritative breakdown of who is owed what.
+model SettlementAllocation {
+  id                  String           @id @default(uuid())
+  orderId             String           @unique
+  merchantId          String
+  mode                SettlementMode
+  grossMinor          Int
+  commissionMinor     Int
+  serviceFeeMinor     Int
+  deliveryFeeMinor    Int
+  /// Delivery fee owed to the merchant (merchant-managed delivery) vs retained for logistics.
+  merchantDeliveryMinor Int
+  providerFeeMinor    Int?
+  refundedMinor       Int              @default(0)
+  merchantNetMinor    Int
+  status              SettlementStatus @default(PENDING_FULFILMENT)
+  payoutReference     String?
+  settledAt           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, status])
+  @@map("settlement_allocations")
+}
+
+enum CommissionScope {
+  DEFAULT
+  MERCHANT_TYPE
+  MARKET
+  MERCHANT
+}
+
+model CommissionRule {
+  id              String          @id @default(uuid())
+  scope           CommissionScope
+  scopeValue      String          @default("")
+  rateBps         Int
+  /// Flat customer-facing service fee per order, in minor units.
+  serviceFeeMinor Int             @default(0)
+  active          Boolean         @default(true)
+  createdById     String?
+  createdAt       DateTime        @default(now())
+
+  @@unique([scope, scopeValue])
+  @@map("commission_rules")
+}
+
+// ───────────────────────────── Fulfilment ─────────────────────────────
+
+enum FulfilmentStatus {
+  PENDING
+  PREPARING
+  READY_FOR_COLLECTION
+  AWAITING_PICKUP
+  DISPATCHED
+  DELIVERED
+  COLLECTED
+  FAILED_ATTEMPT
+  RETURNED
+  CANCELLED
+}
+
+model Fulfilment {
+  id                  String           @id @default(uuid())
+  orderId             String           @unique
+  method              FulfilmentMethod
+  status              FulfilmentStatus @default(PENDING)
+  collectionPointId   String?
+  deliveryAreaId      String?
+  deliveryAddressEnc  String?
+  recipientPhone      String?
+  /// Collection code issued to the customer at payment (encrypted so the customer can re-display
+  /// it); the merchant must enter it to record a collection handover.
+  collectionCodeEnc   String?
+  chargeMinor         Int              @default(0)
+  /// Actual logistics cost when known (feeds contribution margin; null = unknown).
+  logisticsCostMinor  Int?
+  provider            String           @default("MANUAL")
+  providerRef         String?
+  pickupFromMerchant  Boolean          @default(false)
+  scheduledPickupAt   DateTime?
+  failedAttempts      Int              @default(0)
+  completedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  order           Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  collectionPoint CollectionPoint?     @relation(fields: [collectionPointId], references: [id])
+  assignments     DeliveryAssignment[]
+  events          FulfilmentEvent[]
+
+  @@index([status])
+  @@map("fulfilments")
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+model DeliveryAssignment {
+  id           String           @id @default(uuid())
+  fulfilmentId String
+  partnerName  String
+  riderName    String?
+  riderPhone   String?
+  status       AssignmentStatus @default(ASSIGNED)
+  assignedById String
+  note         String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  fulfilment Fulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+
+  @@index([fulfilmentId])
+  @@map("delivery_assignments")
+}
+
+model FulfilmentEvent {
+  id           String   @id @default(uuid())
+  fulfilmentId String
+  type         String
+  note         String?
+  actorUserId  String?
+  createdAt    DateTime @default(now())
+
+  fulfilment Fulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+
+  @@index([fulfilmentId])
+  @@map("fulfilment_events")
+}
+
+// ───────────────────────────── Trust ─────────────────────────────
+
+enum ReviewStatus {
+  PUBLISHED
+  FLAGGED // reported, awaiting moderation; still visible
+  HIDDEN // hidden by moderation (audited)
+}
+
+/// Only creatable for the customer's own delivered/completed order. Merchants cannot edit or
+/// delete reviews; they may respond once. Moderation is staff-only and audited.
+model Review {
+  id               String       @id @default(uuid())
+  orderId          String       @unique
+  merchantId       String
+  customerId       String
+  rating           Int
+  body             String       @default("")
+  status           ReviewStatus @default(PUBLISHED)
+  merchantResponse String?
+  respondedAt      DateTime?
+  createdAt        DateTime     @default(now())
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  customer User     @relation(fields: [customerId], references: [id])
+
+  @@index([merchantId, status])
+  @@map("reviews")
+}
+
+enum ReportTarget {
+  LISTING
+  MERCHANT
+  REVIEW
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+model AbuseReport {
+  id           String       @id @default(uuid())
+  targetType   ReportTarget
+  targetId     String
+  reporterId   String?
+  reason       String
+  details      String       @default("")
+  status       ReportStatus @default(OPEN)
+  resolvedById String?
+  resolution   String?
+  createdAt    DateTime     @default(now())
+
+  @@index([status])
+  @@map("abuse_reports")
+}
+
+enum DisputeStatus {
+  OPEN
+  AWAITING_MERCHANT
+  UNDER_REVIEW
+  RESOLVED_REFUND
+  RESOLVED_NO_REFUND
+  CLOSED
+}
+
+model Dispute {
+  id           String        @id @default(uuid())
+  orderId      String
+  openedById   String
+  reason       String
+  description  String
+  status       DisputeStatus @default(OPEN)
+  assignedToId String?
+  resolution   String?
+  /// Order status before the dispute was opened, restored on a no-refund resolution.
+  priorOrderStatus OrderStatus
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  resolvedAt   DateTime?
+
+  order    Order            @relation(fields: [orderId], references: [id])
+  messages DisputeMessage[]
+
+  @@index([status])
+  @@index([orderId])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id         String   @id @default(uuid())
+  disputeId  String
+  authorId   String
+  authorRole String
+  body       String
+  evidenceKeys String[] @default([])
+  createdAt  DateTime @default(now())
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@map("dispute_messages")
+}
+
+/// Customer pre-purchase question to a merchant.
+model Enquiry {
+  id         String   @id @default(uuid())
+  merchantId String
+  listingId  String?
+  customerId String
+  message    String
+  reply      String?
+  repliedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("enquiries")
+}
+
+// ───────────────────────────── Notifications ─────────────────────────────
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// Outbox: notifications are written in the same transaction as the business change and
+/// delivered asynchronously by NotificationDispatcher.
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String?
+  channel   NotificationChannel
+  recipient String
+  template  String
+  subject   String
+  body      String
+  data      Json                @default("{}")
+  status    NotificationStatus  @default(PENDING)
+  attempts  Int                 @default(0)
+  lastError String?
+  readAt    DateTime?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, channel])
+  @@map("notifications")
+}
+
+// ───────────────────────────── Audit & Analytics ─────────────────────────────
+
+/// Append-only. UPDATE and DELETE are blocked by a database trigger (migration 0002).
+model AuditEvent {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actorRoles  String[] @default([])
+  action      String
+  entityType  String
+  entityId    String
+  merchantId  String?
+  metadata    Json     @default("{}")
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+enum AnalyticsEventType {
+  SEARCH
+  SEARCH_RESULT_CLICK
+  PRODUCT_VIEW
+  STOREFRONT_VIEW
+  ADD_TO_CART
+  CHECKOUT_STARTED
+}
+
+/// First-party, privacy-minimising behavioural events (no IP, salted daily visitor hash).
+model AnalyticsEvent {
+  id          String             @id @default(uuid())
+  type        AnalyticsEventType
+  visitorHash String
+  userId      String?
+  merchantId  String?
+  listingId   String?
+  query       String?
+  resultCount Int?
+  createdAt   DateTime           @default(now())
+
+  @@index([type, createdAt])
+  @@index([merchantId, type])
+  @@map("analytics_events")
+}
+
+// ───────────────────────────── Infrastructure ─────────────────────────────
+
+/// Lease used so only one API instance runs each background job at a time.
+model JobLease {
+  name        String   @id
+  owner       String
+  lockedUntil DateTime
+
+  @@map("job_leases")
+}
+
+/// DEVELOPMENT / TEST ONLY: the state of the deterministic mock payment provider.
+/// It stands in for the provider's own records so that server-side verification is exercised
+/// exactly as with a real provider. Never used when PAYMENT_PROVIDER=paystack.
+model MockProviderCharge {
+  reference    String   @id
+  amountMinor  Int
+  currency     String
+  email        String
+  status       String // pending | success | failed | abandoned
+  feeMinor     Int      @default(0)
+  refundedMinor Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("mock_provider_charges")
+}
